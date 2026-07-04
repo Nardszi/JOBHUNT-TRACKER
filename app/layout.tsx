@@ -3,8 +3,8 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 
 export const metadata: Metadata = {
-  title: "Job Hunt HQ — Nard's Tracker",
-  description: "30-60-90 day job hunt plan and application tracker",
+  title: "Nardz Tracker",
+  description: "Job hunt & growth tracker",
 };
 
 function ThemeScript() {

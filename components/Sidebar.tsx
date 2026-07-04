@@ -51,10 +51,10 @@ export default function Sidebar() {
     <aside className="w-full md:w-56 md:min-h-screen glass-strong md:border-r border-neutral-200 dark:border-white/[0.08] flex md:flex-col">
       <div className="p-4 hidden md:block">
         <h1 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">
-          Job Hunt HQ
+          Nardz Tracker
         </h1>
         <p className="text-xs text-neutral-500 dark:text-neutral-500 tracking-wide uppercase mt-0.5">
-          30-60-90 tracker
+          Job hunt & growth tracker
         </p>
       </div>
       <nav className="flex md:flex-col flex-1 overflow-x-auto md:overflow-visible">

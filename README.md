@@ -1,4 +1,4 @@
-# Job Hunt HQ
+# Nardz Tracker
 
 A personal 30-60-90 day job hunt tracker — plan, applications, portfolio, and interview prep notes, all stored locally in your browser (no backend/signup needed).
 

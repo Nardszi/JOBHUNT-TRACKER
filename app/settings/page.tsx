@@ -88,11 +88,11 @@ export default function SettingsPage() {
       try {
         const raw = JSON.parse(ev.target?.result as string);
         if (typeof raw !== "object" || raw === null) {
-          alert("Invalid file format. Please select a valid Job Hunt HQ backup file.");
+          alert("Invalid file format. Please select a valid Nardz Tracker backup file.");
           return;
         }
         if (raw.version === undefined) {
-          alert("Unrecognized backup format (missing version field). Please select a valid Job Hunt HQ backup file.");
+          alert("Unrecognized backup format (missing version field). Please select a valid Nardz Tracker backup file.");
           return;
         }
         if (!confirm(`Import data from backup (version ${raw.version})? This will overwrite your current data.`)) {
