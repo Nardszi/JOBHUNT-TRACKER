@@ -14,6 +14,9 @@ export interface Task {
   current?: number;
   resetCadence?: ResetCadence;
   lastResetDate?: string;
+  custom?: boolean;
+  note?: string;
+  order?: number;
 }
 
 export type AppStatus =

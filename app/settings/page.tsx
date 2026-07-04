@@ -20,6 +20,7 @@ const CURRENT_VERSION = 1;
 export default function SettingsPage() {
   const [profile, setProfile] = useLocalStorage<Profile>("jh_profile", defaultProfile);
   const [githubUsername, setGithubUsername] = useLocalStorage<string>("jh_github_username", "Nardszi");
+  const [planStartDate, setPlanStartDate] = useLocalStorage<string>("jh_planStartDate", new Date().toISOString().slice(0, 10));
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [notifSupported, setNotifSupported] = useState(false);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("unsupported");
@@ -159,6 +160,16 @@ export default function SettingsPage() {
             onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
             className="w-full glass rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
           />
+        </div>
+        <div>
+          <label className="text-xs text-neutral-500">Plan start date</label>
+          <input
+            type="date"
+            value={planStartDate}
+            onChange={(e) => setPlanStartDate(e.target.value)}
+            className="w-full glass rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+          />
+          <p className="text-[11px] text-neutral-400 mt-1">Controls &quot;Day X of 90&quot; on the Plan page.</p>
         </div>
       </div>
 

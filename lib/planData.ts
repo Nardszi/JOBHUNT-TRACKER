@@ -115,6 +115,9 @@ export function normalizeTask(raw: Task): Task {
     title: raw.title,
     completed: raw.completed,
     kind,
+    custom: raw.custom,
+    note: raw.note,
+    order: raw.order,
   };
   if (kind === "progress") {
     task.target = raw.target ?? 1;
