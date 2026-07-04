@@ -3,7 +3,7 @@
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { defaultTasks, normalizeTask, dailyResetTasks } from "@/lib/planData";
 import { Task } from "@/lib/types";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Check, Minus, Plus, RotateCcw } from "lucide-react";
 
 const phases = [
@@ -105,19 +105,11 @@ export default function PlanPage() {
   const [tab, setTab] = useState<TabKey>("today");
   const [editingStart, setEditingStart] = useState(false);
 
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [initialized, setInitialized] = useState(false);
-
-  useEffect(() => {
+  // Derive normalized tasks directly from rawTasks — no separate local state
+  const tasks = useMemo(() => {
     const normalized = rawTasks.map(normalizeTask);
-    const reset = dailyResetTasks(normalized);
-    setTasks(reset);
-    setInitialized(true);
-    if (JSON.stringify(reset) !== JSON.stringify(rawTasks)) {
-      setRawTasks(reset);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return dailyResetTasks(normalized);
+  }, [rawTasks]);
 
   const dayNumber = getDayNumber(planStartDate);
   const currentPhase = dayToPhase(dayNumber);
@@ -126,24 +118,13 @@ export default function PlanPage() {
     .filter((t) => t.phase === currentPhase && !t.completed)
     .slice(0, 5);
 
-  function toggleBinary(id: string) {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
-    );
+  const toggleBinary = useCallback((id: string) => {
     setRawTasks((prev) =>
       prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
     );
-  }
+  }, [setRawTasks]);
 
   const updateProgress = useCallback((id: string, delta: number) => {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id !== id || t.kind !== "progress") return t;
-        const next = Math.max(0, (t.current ?? 0) + delta);
-        const target = t.target ?? 1;
-        return { ...t, current: next, completed: next >= target };
-      })
-    );
     setRawTasks((prev) =>
       prev.map((t) => {
         if (t.id !== id || t.kind !== "progress") return t;
@@ -155,9 +136,6 @@ export default function PlanPage() {
   }, [setRawTasks]);
 
   const resetProgress = useCallback((id: string) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, current: 0, completed: false } : t))
-    );
     setRawTasks((prev) =>
       prev.map((t) => (t.id === id ? { ...t, current: 0, completed: false } : t))
     );
@@ -165,8 +143,6 @@ export default function PlanPage() {
 
   const phaseTasks = tab !== "today" ? tasks.filter((t) => t.phase === tab) : [];
   const sections = tab !== "today" ? Array.from(new Set(phaseTasks.map((t) => t.section))) : [];
-
-  if (!initialized) return null;
 
   return (
     <div className="space-y-6">
