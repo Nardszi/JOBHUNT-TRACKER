@@ -1,4 +1,4 @@
-import { Task, Project, Profile } from "./types";
+import { Task, Project, Profile, TaskKind, ResetCadence } from "./types";
 
 export const defaultProfile: Profile = {
   name: "Linard T. Cordero",
@@ -53,6 +53,28 @@ function t(phase: Task["phase"], section: string, title: string, i: number): Tas
   return { id: `${phase}-${i}`, phase, section, title, completed: false };
 }
 
+function tp(
+  phase: Task["phase"],
+  section: string,
+  title: string,
+  i: number,
+  target: number,
+  resetCadence: ResetCadence = "none"
+): Task {
+  return {
+    id: `${phase}-${i}`,
+    phase,
+    section,
+    title,
+    completed: false,
+    kind: "progress",
+    target,
+    current: 0,
+    resetCadence,
+    lastResetDate: new Date().toISOString().slice(0, 10),
+  };
+}
+
 export const defaultTasks: Task[] = [
   // Days 1-30
   t("30", "Portfolio & Presence", "Deploy NONECO Document Tracking System live (Vercel + Supabase)", 1),
@@ -60,14 +82,14 @@ export const defaultTasks: Task[] = [
   t("30", "Portfolio & Presence", "Deploy OFW-PORTAL-JOB live", 3),
   t("30", "Portfolio & Presence", "Write clear READMEs (problem, stack, role, screenshots) for each project", 4),
   t("30", "Portfolio & Presence", "Polish GitHub profile README and pin top 3-4 projects", 5),
-  t("30", "Applications", "Apply to 5-10 remote/WFH junior dev roles per day", 6),
+  tp("30", "Applications", "Apply to 10 remote/WFH junior dev roles per day", 6, 10, "daily"),
   t("30", "Applications", "Customize resume + cover letter per role", 7),
   t("30", "Applications", "Set up application tracker spreadsheet/tool", 8),
   t("30", "Skill Sharpening", "Learn Docker basics / deployment & CI-CD fundamentals", 9),
   t("30", "Skill Sharpening", "Review common IT interview questions", 10),
 
   // Days 31-60
-  t("60", "Interview Readiness", "Practice mock technical interviews (Laravel/React/PostgreSQL)", 11),
+  tp("60", "Interview Readiness", "Practice mock technical interviews (Laravel/React/PostgreSQL)", 11, 3, "none"),
   t("60", "Interview Readiness", "Practice behavioral answers using STAR method", 12),
   t("60", "Interview Readiness", "Prepare 2-3 strong project walkthroughs", 13),
   t("60", "Widen the Net", "Add freelance gigs on Upwork/Fiverr for income + portfolio", 14),
@@ -83,3 +105,42 @@ export const defaultTasks: Task[] = [
   t("90", "Decision Point", "If still searching, widen role titles (IT Support, QA, Tech Support)", 22),
   t("90", "Decision Point", "Revisit portfolio based on interview feedback patterns", 23),
 ];
+
+export function normalizeTask(raw: Task): Task {
+  const kind: TaskKind = raw.kind ?? "binary";
+  const task: Task = {
+    id: raw.id,
+    phase: raw.phase,
+    section: raw.section,
+    title: raw.title,
+    completed: raw.completed,
+    kind,
+  };
+  if (kind === "progress") {
+    task.target = raw.target ?? 1;
+    task.current = raw.current ?? 0;
+    task.resetCadence = raw.resetCadence ?? "none";
+    task.lastResetDate = raw.lastResetDate ?? new Date().toISOString().slice(0, 10);
+  }
+  return task;
+}
+
+export function dailyResetTasks(tasks: Task[]): Task[] {
+  const today = new Date().toISOString().slice(0, 10);
+  let changed = false;
+  const updated = tasks.map((task) => {
+    if (task.kind === "progress" && task.resetCadence === "daily") {
+      if (task.lastResetDate !== today) {
+        changed = true;
+        return {
+          ...task,
+          current: 0,
+          completed: false,
+          lastResetDate: today,
+        };
+      }
+    }
+    return task;
+  });
+  return changed ? updated : tasks;
+}

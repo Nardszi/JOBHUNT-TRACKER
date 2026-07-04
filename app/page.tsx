@@ -1,10 +1,10 @@
 "use client";
 
 import { useLocalStorage } from "@/lib/useLocalStorage";
-import { defaultTasks, defaultProfile } from "@/lib/planData";
+import { defaultTasks, defaultProfile, normalizeTask, dailyResetTasks } from "@/lib/planData";
 import { Task, Application, Profile, Workout } from "@/lib/types";
 import Link from "next/link";
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { startNotificationChecks, stopNotificationChecks } from "@/lib/notifications";
 
@@ -58,10 +58,22 @@ function getLastNWeeks(n: number): string[] {
 }
 
 export default function OverviewPage() {
-  const [tasks] = useLocalStorage<Task[]>("jh_tasks", defaultTasks);
+  const [rawTasks, setRawTasks] = useLocalStorage<Task[]>("jh_tasks", defaultTasks);
   const [applications] = useLocalStorage<Application[]>("jh_applications", []);
   const [profile] = useLocalStorage<Profile>("jh_profile", defaultProfile);
   const [workouts] = useLocalStorage<Workout[]>("jh_workouts", []);
+
+  // Normalize and apply daily resets once on load
+  const [tasks, setTasks] = useState<Task[]>(rawTasks);
+  useEffect(() => {
+    const normalized = rawTasks.map(normalizeTask);
+    const reset = dailyResetTasks(normalized);
+    setTasks(reset);
+    if (JSON.stringify(reset) !== JSON.stringify(rawTasks)) {
+      setRawTasks(reset);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     startNotificationChecks(() => applications);

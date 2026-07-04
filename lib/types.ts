@@ -1,11 +1,19 @@
 export type TaskPhase = "30" | "60" | "90";
 
+export type TaskKind = "binary" | "progress";
+export type ResetCadence = "none" | "daily";
+
 export interface Task {
   id: string;
   phase: TaskPhase;
   section: string;
   title: string;
   completed: boolean;
+  kind?: TaskKind;
+  target?: number;
+  current?: number;
+  resetCadence?: ResetCadence;
+  lastResetDate?: string;
 }
 
 export type AppStatus =
