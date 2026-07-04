@@ -88,23 +88,17 @@ export default function ExercisePage() {
   const [bestStreak, setBestStreak] = useLocalStorage<number>("jh_bestStreak", 0);
   const [bodyStats, setBodyStats] = useLocalStorage<BodyStat[]>("jh_bodyStats", []);
 
-  // Migrate old templates missing category/durationMinutes
-  const templates = useMemo(() => {
-    return rawTemplates.map((t) => ({
-      ...t,
-      category: t.category || "bodyweight",
-      durationMinutes: t.durationMinutes || 15,
-    }));
-  }, [rawTemplates]);
-
-  // Sync migrated data back if needed
+  // Force-refresh templates if old data has fewer than 100 templates (old 3-template format)
+  const [templatesReady, setTemplatesReady] = useState(false);
   useMemo(() => {
-    const needsMigration = rawTemplates.some((t) => !t.category || !t.durationMinutes);
-    if (needsMigration) {
-      setRawTemplates(templates);
+    if (rawTemplates.length < 100) {
+      setRawTemplates(defaultTemplates);
     }
+    setTemplatesReady(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const templates = templatesReady ? rawTemplates : defaultTemplates;
 
   const [tab, setTab] = useState<"log" | "history" | "templates">("log");
   const [editing, setEditing] = useState<Workout | null>(null);
@@ -180,7 +174,7 @@ export default function ExercisePage() {
 
   const quickStartTemplates = useMemo(() => {
     const source = hasActiveFilters ? filteredTemplates : templates;
-    return source.slice(0, 3);
+    return source.slice(0, 5);
   }, [templates, filteredTemplates, hasActiveFilters]);
 
   function startFromTemplate(template: WorkoutTemplate) {
@@ -237,9 +231,17 @@ export default function ExercisePage() {
   const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null);
 
   function saveTemplate(tpl: WorkoutTemplate) {
+    const templateToSave = {
+      ...tpl,
+      category: tpl.category || "bodyweight",
+      durationMinutes: tpl.durationMinutes || 15,
+    };
     setRawTemplates((prev) => {
-      const exists = prev.some((t) => t.id === tpl.id);
-      return exists ? prev.map((t) => (t.id === tpl.id ? tpl : t)) : [...prev, tpl];
+      const exists = prev.some((t) => t.id === templateToSave.id);
+      if (exists) {
+        return prev.map((t) => (t.id === templateToSave.id ? templateToSave : t));
+      }
+      return [...prev, templateToSave];
     });
     setEditingTemplate(null);
   }
@@ -349,7 +351,15 @@ export default function ExercisePage() {
         </div>
 
         <div className="glass rounded-2xl p-5 animate-in stagger-2 transition-all duration-200 hover:scale-[1.02]">
-          <h2 className="text-sm font-semibold text-neutral-900 dark:text-white mb-2">Quick start</h2>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">Quick start</h2>
+            <button
+              onClick={() => setTab("templates")}
+              className="text-xs text-violet-500 dark:text-violet-400 hover:underline"
+            >
+              Browse all {templates.length} →
+            </button>
+          </div>
           <div className="space-y-2">
             {quickStartTemplates.map((tpl) => (
               <button
@@ -359,10 +369,13 @@ export default function ExercisePage() {
               >
                 <div className="flex items-center gap-2">
                   <Dumbbell className="w-4 h-4 text-violet-400" />
-                  <div>
-                    <p className="text-sm font-medium text-neutral-900 dark:text-white">{tpl.name}</p>
-                    <p className="text-xs text-neutral-500">{tpl.description}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-neutral-900 dark:text-white truncate">{tpl.name}</p>
+                    <p className="text-xs text-neutral-500 truncate">{tpl.description}</p>
                   </div>
+                  <span className="text-[10px] glass rounded-full px-1.5 py-0.5 text-emerald-500 dark:text-emerald-400 shrink-0">
+                    {tpl.durationMinutes}m
+                  </span>
                 </div>
               </button>
             ))}
