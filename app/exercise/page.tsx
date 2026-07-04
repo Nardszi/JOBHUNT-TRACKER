@@ -3,7 +3,7 @@
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { defaultTemplates } from "@/lib/exerciseData";
 import { Workout, WorkoutTemplate, ExerciseEntry, BodyStat, ExerciseType, TemplateCategory } from "@/lib/types";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } from "recharts";
 import { Plus, Trash2, Pencil, Play, Flame, Trophy, ChevronDown, ChevronUp, Dumbbell, Search } from "lucide-react";
 
@@ -84,21 +84,20 @@ const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function ExercisePage() {
   const [workouts, setWorkouts] = useLocalStorage<Workout[]>("jh_workouts", []);
-  const [rawTemplates, setRawTemplates] = useLocalStorage<WorkoutTemplate[]>("jh_templates", defaultTemplates);
+  const [rawTemplates, setRawTemplates, templatesLoaded] = useLocalStorage<WorkoutTemplate[]>("jh_templates", defaultTemplates);
   const [bestStreak, setBestStreak] = useLocalStorage<number>("jh_bestStreak", 0);
   const [bodyStats, setBodyStats] = useLocalStorage<BodyStat[]>("jh_bodyStats", []);
 
-  // Force-refresh templates if old data has fewer than 100 templates (old 3-template format)
-  const [templatesReady, setTemplatesReady] = useState(false);
-  useMemo(() => {
-    if (rawTemplates.length < 100) {
+  // Force-refresh templates if old data has fewer than 100 templates
+  const [refreshed, setRefreshed] = useState(false);
+  useEffect(() => {
+    if (templatesLoaded && rawTemplates.length < 100) {
       setRawTemplates(defaultTemplates);
     }
-    setTemplatesReady(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (templatesLoaded) setRefreshed(true);
+  }, [templatesLoaded, rawTemplates.length, setRawTemplates]);
 
-  const templates = templatesReady ? rawTemplates : defaultTemplates;
+  const templates = refreshed ? rawTemplates : defaultTemplates;
 
   const [tab, setTab] = useState<"log" | "history" | "templates">("log");
   const [editing, setEditing] = useState<Workout | null>(null);
