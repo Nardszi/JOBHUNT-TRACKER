@@ -84,9 +84,27 @@ const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function ExercisePage() {
   const [workouts, setWorkouts] = useLocalStorage<Workout[]>("jh_workouts", []);
-  const [templates, setTemplates] = useLocalStorage<WorkoutTemplate[]>("jh_templates", defaultTemplates);
+  const [rawTemplates, setRawTemplates] = useLocalStorage<WorkoutTemplate[]>("jh_templates", defaultTemplates);
   const [bestStreak, setBestStreak] = useLocalStorage<number>("jh_bestStreak", 0);
   const [bodyStats, setBodyStats] = useLocalStorage<BodyStat[]>("jh_bodyStats", []);
+
+  // Migrate old templates missing category/durationMinutes
+  const templates = useMemo(() => {
+    return rawTemplates.map((t) => ({
+      ...t,
+      category: t.category || "bodyweight",
+      durationMinutes: t.durationMinutes || 15,
+    }));
+  }, [rawTemplates]);
+
+  // Sync migrated data back if needed
+  useMemo(() => {
+    const needsMigration = rawTemplates.some((t) => !t.category || !t.durationMinutes);
+    if (needsMigration) {
+      setRawTemplates(templates);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [tab, setTab] = useState<"log" | "history" | "templates">("log");
   const [editing, setEditing] = useState<Workout | null>(null);
@@ -219,7 +237,7 @@ export default function ExercisePage() {
   const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null);
 
   function saveTemplate(tpl: WorkoutTemplate) {
-    setTemplates((prev) => {
+    setRawTemplates((prev) => {
       const exists = prev.some((t) => t.id === tpl.id);
       return exists ? prev.map((t) => (t.id === tpl.id ? tpl : t)) : [...prev, tpl];
     });
@@ -227,7 +245,7 @@ export default function ExercisePage() {
   }
 
   function deleteTemplate(id: string) {
-    setTemplates((prev) => prev.filter((t) => t.id !== id));
+    setRawTemplates((prev) => prev.filter((t) => t.id !== id));
   }
 
   function newTemplate() {
