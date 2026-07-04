@@ -82,10 +82,22 @@ export interface Workout {
   completed: boolean;
 }
 
+export type TemplateCategory =
+  | "bodyweight"
+  | "cardio"
+  | "stretching"
+  | "strength"
+  | "yoga"
+  | "desk_break"
+  | "core"
+  | "full_body";
+
 export interface WorkoutTemplate {
   id: string;
   name: string;
   description: string;
+  category: TemplateCategory;
+  durationMinutes: number;
   exercises: Omit<ExerciseEntry, "id">[];
 }
 

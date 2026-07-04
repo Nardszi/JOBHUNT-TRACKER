@@ -2,12 +2,47 @@
 
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { defaultTemplates } from "@/lib/exerciseData";
-import { Workout, WorkoutTemplate, ExerciseEntry, BodyStat, ExerciseType } from "@/lib/types";
+import { Workout, WorkoutTemplate, ExerciseEntry, BodyStat, ExerciseType, TemplateCategory } from "@/lib/types";
 import { useState, useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } from "recharts";
-import { Plus, Trash2, Pencil, Play, Flame, Trophy, ChevronDown, ChevronUp, Dumbbell } from "lucide-react";
+import { Plus, Trash2, Pencil, Play, Flame, Trophy, ChevronDown, ChevronUp, Dumbbell, Search } from "lucide-react";
 
 const exerciseTypes: ExerciseType[] = ["strength", "cardio", "flexibility", "other"];
+
+const categories: { value: TemplateCategory | "all"; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "bodyweight", label: "Bodyweight" },
+  { value: "cardio", label: "Cardio" },
+  { value: "stretching", label: "Stretching" },
+  { value: "strength", label: "Strength" },
+  { value: "yoga", label: "Yoga" },
+  { value: "desk_break", label: "Desk Break" },
+  { value: "core", label: "Core" },
+  { value: "full_body", label: "Full Body" },
+];
+
+const templateCategories: TemplateCategory[] = [
+  "bodyweight", "cardio", "stretching", "strength", "yoga", "desk_break", "core", "full_body",
+];
+
+const categoryLabels: Record<TemplateCategory, string> = {
+  bodyweight: "Bodyweight",
+  cardio: "Cardio",
+  stretching: "Stretching",
+  strength: "Strength",
+  yoga: "Yoga",
+  desk_break: "Desk Break",
+  core: "Core",
+  full_body: "Full Body",
+};
+
+const durations: { value: "all" | "short" | "medium" | "long" | "xlong"; label: string }[] = [
+  { value: "all", label: "Any" },
+  { value: "short", label: "Under 10 min" },
+  { value: "medium", label: "10-20 min" },
+  { value: "long", label: "20-30 min" },
+  { value: "xlong", label: "30+ min" },
+];
 
 function emptyExercise(): ExerciseEntry {
   return { id: crypto.randomUUID(), name: "", type: "strength" };
@@ -58,6 +93,11 @@ export default function ExercisePage() {
   const [showBodyStats, setShowBodyStats] = useState(false);
   const [bodyStatForm, setBodyStatForm] = useState({ weightKg: "", notes: "" });
 
+  const [categoryFilter, setCategoryFilter] = useState<TemplateCategory | "all">("all");
+  const [durationFilter, setDurationFilter] = useState<"all" | "short" | "medium" | "long" | "xlong">("all");
+  const [templateSearch, setTemplateSearch] = useState("");
+  const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
+
   const streak = useMemo(() => computeStreak(workouts), [workouts]);
   const currentBest = useMemo(() => Math.max(bestStreak, streak), [bestStreak, streak]);
 
@@ -92,6 +132,38 @@ export default function ExercisePage() {
         weight: b.weightKg,
       }));
   }, [bodyStats]);
+
+  const hasActiveFilters = categoryFilter !== "all" || durationFilter !== "all" || templateSearch.trim() !== "";
+
+  const filteredTemplates = useMemo(() => {
+    return templates.filter((tpl) => {
+      if (categoryFilter !== "all" && tpl.category !== categoryFilter) return false;
+
+      if (durationFilter !== "all") {
+        const d = tpl.durationMinutes;
+        switch (durationFilter) {
+          case "short": if (d >= 10) return false; break;
+          case "medium": if (d < 10 || d >= 20) return false; break;
+          case "long": if (d < 20 || d >= 30) return false; break;
+          case "xlong": if (d < 30) return false; break;
+        }
+      }
+
+      if (templateSearch.trim()) {
+        const q = templateSearch.toLowerCase();
+        const matchName = tpl.name.toLowerCase().includes(q);
+        const matchDesc = tpl.description.toLowerCase().includes(q);
+        if (!matchName && !matchDesc) return false;
+      }
+
+      return true;
+    });
+  }, [templates, categoryFilter, durationFilter, templateSearch]);
+
+  const quickStartTemplates = useMemo(() => {
+    const source = hasActiveFilters ? filteredTemplates : templates;
+    return source.slice(0, 3);
+  }, [templates, filteredTemplates, hasActiveFilters]);
 
   function startFromTemplate(template: WorkoutTemplate) {
     const workout: Workout = {
@@ -163,6 +235,8 @@ export default function ExercisePage() {
       id: crypto.randomUUID(),
       name: "",
       description: "",
+      category: "bodyweight",
+      durationMinutes: 15,
       exercises: [emptyExercise()],
     });
   }
@@ -259,7 +333,7 @@ export default function ExercisePage() {
         <div className="glass rounded-2xl p-5 animate-in stagger-2 transition-all duration-200 hover:scale-[1.02]">
           <h2 className="text-sm font-semibold text-neutral-900 dark:text-white mb-2">Quick start</h2>
           <div className="space-y-2">
-            {templates.slice(0, 3).map((tpl) => (
+            {quickStartTemplates.map((tpl) => (
               <button
                 key={tpl.id}
                 onClick={() => startFromTemplate(tpl)}
@@ -491,7 +565,54 @@ export default function ExercisePage() {
 
       {tab === "templates" && (
         <div className="space-y-4">
-          <div className="flex justify-end">
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+              <input
+                placeholder="Search templates..."
+                value={templateSearch}
+                onChange={(e) => setTemplateSearch(e.target.value)}
+                className="w-full glass rounded-xl pl-9 pr-3 py-2 text-sm text-neutral-900 dark:text-white transition-all duration-200"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {categories.map((cat) => (
+                <button
+                  key={cat.value}
+                  onClick={() => setCategoryFilter(cat.value)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 active:scale-95 ${
+                    categoryFilter === cat.value
+                      ? "bg-violet-600 text-white"
+                      : "glass text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {durations.map((dur) => (
+                <button
+                  key={dur.value}
+                  onClick={() => setDurationFilter(dur.value)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 active:scale-95 ${
+                    durationFilter === dur.value
+                      ? "bg-violet-600 text-white"
+                      : "glass text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
+                  }`}
+                >
+                  {dur.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+              {filteredTemplates.length} template{filteredTemplates.length !== 1 ? "s" : ""} match
+            </p>
             <button
               onClick={newTemplate}
               className="glass hover:bg-white/[0.06] text-white bg-violet-600 px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 transition-all duration-200 active:scale-95"
@@ -500,54 +621,94 @@ export default function ExercisePage() {
               New Template
             </button>
           </div>
-          {templates.map((tpl) => (
-            <div key={tpl.id} className="glass rounded-2xl p-4 hover:scale-[1.02] transition-all duration-200 animate-in">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-neutral-900 dark:text-white font-semibold">{tpl.name}</h3>
-                  <p className="text-sm text-neutral-500">{tpl.description}</p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {tpl.exercises.map((ex, i) => (
-                      <span key={i} className="text-xs glass rounded-lg px-2 py-0.5 text-neutral-600 dark:text-neutral-300">
-                        {ex.name}
-                        {ex.sets && ex.reps ? ` (${ex.sets}×${ex.reps})` : ""}
-                        {ex.durationMinutes ? ` (${ex.durationMinutes}m)` : ""}
+
+          {filteredTemplates.length === 0 ? (
+            <div className="glass rounded-2xl p-8 text-center animate-in">
+              <Dumbbell className="w-10 h-10 text-neutral-400 mx-auto mb-3" />
+              <p className="text-neutral-500 dark:text-neutral-400">
+                No templates match your filters.
+              </p>
+            </div>
+          ) : (
+            filteredTemplates.map((tpl) => (
+              <div key={tpl.id} className="glass rounded-2xl p-4 hover:scale-[1.02] transition-all duration-200 animate-in">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-neutral-900 dark:text-white font-semibold">{tpl.name}</h3>
+                      <span className="text-[10px] glass rounded-full px-2 py-0.5 text-violet-500 dark:text-violet-400 font-medium">
+                        {categoryLabels[tpl.category]}
                       </span>
-                    ))}
+                      <span className="text-[10px] glass rounded-full px-2 py-0.5 text-emerald-500 dark:text-emerald-400 font-medium">
+                        {tpl.durationMinutes} min
+                      </span>
+                    </div>
+                    <p className="text-sm text-neutral-500">{tpl.description}</p>
+                    {expandedTemplate === tpl.id ? (
+                      <div className="space-y-2 mt-2">
+                        <div className="flex flex-wrap gap-1.5">
+                          {tpl.exercises.map((ex, i) => (
+                            <span key={i} className="text-xs glass rounded-lg px-2 py-0.5 text-neutral-600 dark:text-neutral-300">
+                              {ex.name}
+                              {ex.sets && ex.reps ? ` (${ex.sets}×${ex.reps})` : ""}
+                              {ex.durationMinutes ? ` (${ex.durationMinutes}m)` : ""}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => { startFromTemplate(tpl); setExpandedTemplate(null); }}
+                            className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 transition-all duration-200 active:scale-95"
+                          >
+                            <Play className="w-3.5 h-3.5" />
+                            Start Workout
+                          </button>
+                          <button
+                            onClick={() => setExpandedTemplate(null)}
+                            className="text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-all duration-200 active:scale-95"
+                          >
+                            Collapse
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2 mt-1">
+                        <button
+                          onClick={() => setExpandedTemplate(tpl.id)}
+                          className="text-xs text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1 transition-all duration-200 active:scale-95"
+                        >
+                          View / Start
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2 ml-2 shrink-0">
+                    <button
+                      onClick={() => setEditingTemplate(tpl)}
+                      className="text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-white flex items-center gap-1 transition-all duration-200 active:scale-95"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => deleteTemplate(tpl.id)}
+                      className="text-xs text-red-500 hover:text-red-400 flex items-center gap-1 transition-all duration-200 active:scale-95"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete
+                    </button>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => startFromTemplate(tpl)}
-                    className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 transition-all duration-200 active:scale-95"
-                  >
-                    <Play className="w-3.5 h-3.5" />
-                    Use
-                  </button>
-                  <button
-                    onClick={() => setEditingTemplate(tpl)}
-                    className="text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-white flex items-center gap-1 transition-all duration-200 active:scale-95"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => deleteTemplate(tpl.id)}
-                    className="text-xs text-red-500 hover:text-red-400 flex items-center gap-1 transition-all duration-200 active:scale-95"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Delete
-                  </button>
-                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
 
       {editingTemplate && (
         <div className="fixed inset-0 bg-black/60 modal-backdrop flex items-center justify-center p-4 z-50">
-          <div className="glass rounded-2xl p-6 w-full max-w-lg space-y-3 modal-content animate-in">
+          <div className="glass rounded-2xl p-6 w-full max-w-lg space-y-3 modal-content animate-in max-h-[90vh] overflow-y-auto">
             <h2 className="text-neutral-900 dark:text-white font-semibold text-lg">
               {templates.some((t) => t.id === editingTemplate.id) ? "Edit" : "New"} Template
             </h2>
@@ -563,6 +724,30 @@ export default function ExercisePage() {
               onChange={(e) => setEditingTemplate({ ...editingTemplate, description: e.target.value })}
               className="w-full glass rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white transition-all duration-200"
             />
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-xs text-neutral-500 mb-1 block">Category *</label>
+                <select
+                  value={editingTemplate.category}
+                  onChange={(e) => setEditingTemplate({ ...editingTemplate, category: e.target.value as TemplateCategory })}
+                  className="w-full glass rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white transition-all duration-200"
+                >
+                  {templateCategories.map((c) => (
+                    <option key={c} value={c}>{categoryLabels[c]}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-neutral-500 mb-1 block">Duration (min) *</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={editingTemplate.durationMinutes}
+                  onChange={(e) => setEditingTemplate({ ...editingTemplate, durationMinutes: parseInt(e.target.value) || 15 })}
+                  className="w-24 glass rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white transition-all duration-200"
+                />
+              </div>
+            </div>
             <div className="space-y-2">
               {editingTemplate.exercises.map((ex, i) => (
                 <div key={i} className="flex gap-2 items-end">
