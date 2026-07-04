@@ -95,21 +95,12 @@ function StatCard({ icon: Icon, value, label, color, delay }: {
 }
 
 export default function OverviewPage() {
-  const [rawTasks, setRawTasks] = useLocalStorage<Task[]>("jh_tasks", defaultTasks);
+  const [rawTasks] = useLocalStorage<Task[]>("jh_tasks", defaultTasks);
   const [applications] = useLocalStorage<Application[]>("jh_applications", []);
   const [profile] = useLocalStorage<Profile>("jh_profile", defaultProfile);
   const [workouts] = useLocalStorage<Workout[]>("jh_workouts", []);
 
-  const [tasks, setTasks] = useState<Task[]>(rawTasks);
-  useEffect(() => {
-    const normalized = rawTasks.map(normalizeTask);
-    const reset = dailyResetTasks(normalized);
-    setTasks(reset);
-    if (JSON.stringify(reset) !== JSON.stringify(rawTasks)) {
-      setRawTasks(reset);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const tasks = useMemo(() => dailyResetTasks(rawTasks.map(normalizeTask)), [rawTasks]);
 
   useEffect(() => {
     startNotificationChecks(() => applications);

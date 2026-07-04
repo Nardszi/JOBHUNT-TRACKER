@@ -3,7 +3,7 @@
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { defaultTasks, normalizeTask, dailyResetTasks } from "@/lib/planData";
 import { Task } from "@/lib/types";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Check, Minus, Plus, RotateCcw } from "lucide-react";
 
 const phases = [
@@ -100,16 +100,21 @@ function ProgressTask({ task, onIncrement, onDecrement, onReset }: {
 }
 
 export default function PlanPage() {
-  const [rawTasks, setRawTasks] = useLocalStorage<Task[]>("jh_tasks", defaultTasks);
+  const [rawTasks, setRawTasks, loaded] = useLocalStorage<Task[]>("jh_tasks", defaultTasks);
   const [planStartDate, setPlanStartDate] = useLocalStorage<string>("jh_planStartDate", new Date().toISOString().slice(0, 10));
   const [tab, setTab] = useState<TabKey>("today");
   const [editingStart, setEditingStart] = useState(false);
 
-  // Derive normalized tasks directly from rawTasks — no separate local state
-  const tasks = useMemo(() => {
-    const normalized = rawTasks.map(normalizeTask);
-    return dailyResetTasks(normalized);
-  }, [rawTasks]);
+  const tasks = useMemo(() => dailyResetTasks(rawTasks.map(normalizeTask)), [rawTasks]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    const reset = dailyResetTasks(rawTasks.map(normalizeTask));
+    if (JSON.stringify(reset) !== JSON.stringify(rawTasks)) {
+      setRawTasks(reset);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded]);
 
   const dayNumber = getDayNumber(planStartDate);
   const currentPhase = dayToPhase(dayNumber);
