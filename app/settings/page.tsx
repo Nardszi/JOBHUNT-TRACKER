@@ -13,12 +13,13 @@ import {
   getNotificationTime,
   setNotificationTime,
 } from "@/lib/notifications";
-import { Download, Upload, Trash2, Bell, BellOff, User, Shield } from "lucide-react";
+import { Download, Upload, Trash2, Bell, BellOff, User, Shield, GitBranch } from "lucide-react";
 
 const CURRENT_VERSION = 1;
 
 export default function SettingsPage() {
   const [profile, setProfile] = useLocalStorage<Profile>("jh_profile", defaultProfile);
+  const [githubUsername, setGithubUsername] = useLocalStorage<string>("jh_github_username", "Nardszi");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [notifSupported, setNotifSupported] = useState(false);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("unsupported");
@@ -74,7 +75,7 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `jobhunt-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `nardz-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -158,6 +159,21 @@ export default function SettingsPage() {
             onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
             className="w-full glass rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
           />
+        </div>
+      </div>
+
+      <div className="glass rounded-2xl p-5 space-y-3 animate-in stagger-2">
+        <h2 className="text-neutral-900 dark:text-white font-semibold flex items-center gap-2"><GitBranch className="w-4 h-4" /> GitHub Integration</h2>
+        <p className="text-xs text-neutral-500">Public repos are fetched from the GitHub API (60 requests/hour without auth).</p>
+        <div>
+          <label className="text-xs text-neutral-500">GitHub Username</label>
+          <input
+            value={githubUsername}
+            onChange={(e) => setGithubUsername(e.target.value)}
+            placeholder="e.g. Nardszi"
+            className="w-full glass rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+          />
+          <p className="text-[11px] text-neutral-400 mt-1">Used to fetch your public repos for the Portfolio page.</p>
         </div>
       </div>
 
