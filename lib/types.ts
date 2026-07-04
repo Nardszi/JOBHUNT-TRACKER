@@ -52,3 +52,38 @@ export interface Profile {
   email: string;
   phone: string;
 }
+
+export type ExerciseType = "strength" | "cardio" | "flexibility" | "other";
+
+export interface ExerciseEntry {
+  id: string;
+  name: string;
+  type: ExerciseType;
+  sets?: number;
+  reps?: number;
+  weightKg?: number;
+  durationMinutes?: number;
+  notes?: string;
+}
+
+export interface Workout {
+  id: string;
+  date: string;
+  templateId?: string;
+  exercises: ExerciseEntry[];
+  completed: boolean;
+}
+
+export interface WorkoutTemplate {
+  id: string;
+  name: string;
+  description: string;
+  exercises: Omit<ExerciseEntry, "id">[];
+}
+
+export interface BodyStat {
+  id: string;
+  date: string;
+  weightKg?: number;
+  notes?: string;
+}

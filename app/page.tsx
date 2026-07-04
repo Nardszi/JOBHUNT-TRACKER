@@ -2,7 +2,7 @@
 
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { defaultTasks, defaultProfile } from "@/lib/planData";
-import { Task, Application, Profile } from "@/lib/types";
+import { Task, Application, Profile, Workout } from "@/lib/types";
 import Link from "next/link";
 import { useMemo, useEffect } from "react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
@@ -61,6 +61,7 @@ export default function OverviewPage() {
   const [tasks] = useLocalStorage<Task[]>("jh_tasks", defaultTasks);
   const [applications] = useLocalStorage<Application[]>("jh_applications", []);
   const [profile] = useLocalStorage<Profile>("jh_profile", defaultProfile);
+  const [workouts] = useLocalStorage<Workout[]>("jh_workouts", []);
 
   useEffect(() => {
     startNotificationChecks(() => applications);
@@ -140,6 +141,26 @@ export default function OverviewPage() {
 
   const hasEnoughData = applications.length >= 2;
 
+  // Exercise streak
+  const exerciseStreak = useMemo(() => {
+    const dates = [...new Set(workouts.filter((w) => w.completed).map((w) => w.date))].sort().reverse();
+    if (dates.length === 0) return 0;
+    let count = 0;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      if (dates.includes(key)) {
+        count++;
+      } else if (i > 0) {
+        break;
+      }
+    }
+    return count;
+  }, [workouts]);
+
   const phases = [
     { key: "30", label: "Days 1-30" },
     { key: "60", label: "Days 31-60" },
@@ -159,7 +180,7 @@ export default function OverviewPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <div className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 flex flex-col items-center justify-center">
           <ProgressRing percent={percent} />
           <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-2">Overall plan progress</p>
@@ -180,6 +201,13 @@ export default function OverviewPage() {
           <p className="text-3xl font-bold text-orange-500">🔥 {streak}</p>
           <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Week streak</p>
         </div>
+        <Link
+          href="/exercise"
+          className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 flex flex-col items-center justify-center hover:border-emerald-500 transition"
+        >
+          <p className="text-3xl font-bold text-orange-500">🏋️ {exerciseStreak}</p>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Exercise streak</p>
+        </Link>
       </div>
 
       <div>
