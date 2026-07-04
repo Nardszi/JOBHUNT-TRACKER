@@ -225,7 +225,7 @@ export default function NotesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-wrap justify-between items-center gap-3 animate-in">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight">
@@ -243,77 +243,73 @@ export default function NotesPage() {
         </button>
       </div>
 
-      {/* Search */}
-      <div className="animate-in stagger-1">
+      {/* Search + Filters Row */}
+      <div className="flex flex-wrap items-center gap-3 animate-in stagger-1">
         <input
           type="text"
           placeholder="Search notes..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-xl px-4 py-2.5 text-sm text-neutral-900 dark:text-white bg-neutral-100 dark:bg-white/[0.06] border border-neutral-200 dark:border-white/[0.08] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+          className="flex-1 min-w-[200px] rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white bg-neutral-100 dark:bg-white/[0.06] border border-neutral-200 dark:border-white/[0.08] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
         />
+        <div className="flex flex-wrap gap-1.5">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setFilter(cat)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-200 active:scale-95 whitespace-nowrap ${
+                filter === cat
+                  ? "bg-violet-500 text-white"
+                  : "bg-neutral-100 dark:bg-white/[0.06] text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-white/[0.1] border border-neutral-200 dark:border-white/[0.08]"
+              }`}
+            >
+              {cat} <span className="opacity-60">{categoryCounts[cat] || 0}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Category Filter Pills */}
-      <div className="flex flex-wrap gap-2 animate-in stagger-2">
-        {CATEGORIES.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setFilter(cat)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 active:scale-95 ${
-              filter === cat
-                ? "bg-violet-500 text-white"
-                : "bg-neutral-100 dark:bg-white/[0.06] text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-white/[0.1] border border-neutral-200 dark:border-white/[0.08]"
-            }`}
-          >
-            {cat}
-            <span className="ml-1 opacity-60">{categoryCounts[cat] || 0}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Notes Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Notes Grid — compact 3/4 columns */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5">
         {filtered.map((n, i) => (
           <div
             key={n.id}
-            className={`bg-white dark:bg-white/[0.04] rounded-2xl p-5 space-y-2 border border-neutral-200 dark:border-white/[0.08] hover:bg-neutral-50 dark:hover:bg-white/[0.06] transition-all duration-200 animate-in stagger-${(i % 6) + 1}`}
+            className={`bg-white dark:bg-white/[0.04] rounded-xl p-3 border border-neutral-200 dark:border-white/[0.08] hover:bg-neutral-50 dark:hover:bg-white/[0.06] transition-all duration-200 animate-in stagger-${(i % 6) + 1} flex flex-col`}
           >
             <div
-              className="cursor-pointer"
+              className="cursor-pointer flex-1"
               onClick={() => setViewing(n)}
             >
-              <div className="flex justify-between items-start gap-2">
-                <h2 className="text-neutral-900 dark:text-white font-semibold flex items-center gap-2 text-sm">
-                  <StickyNote size={14} className="text-emerald-400 shrink-0" />
-                  <span className="line-clamp-2">{n.title}</span>
+              <div className="flex justify-between items-start gap-1.5 mb-1.5">
+                <h2 className="text-neutral-900 dark:text-white font-medium text-xs leading-snug line-clamp-2">
+                  {n.title}
                 </h2>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 shrink-0">
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 shrink-0 leading-none">
                   {n.category}
                 </span>
               </div>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 whitespace-pre-wrap line-clamp-6 mt-2">
+              <p className="text-[11px] text-neutral-500 dark:text-neutral-400 whitespace-pre-wrap line-clamp-3 leading-relaxed">
                 {n.content}
               </p>
             </div>
-            <div className="flex gap-3 pt-1 border-t border-neutral-100 dark:border-white/[0.06]">
+            <div className="flex gap-2 pt-1.5 mt-1.5 border-t border-neutral-100 dark:border-white/[0.06]">
               <button
                 onClick={() => setEditing(n)}
-                className="text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-white flex items-center gap-1 active:scale-95 transition-all duration-200"
+                className="text-[11px] text-neutral-400 hover:text-neutral-900 dark:hover:text-white flex items-center gap-0.5 active:scale-95 transition-all duration-200"
               >
-                <Pencil size={12} /> Edit
+                <Pencil size={10} /> Edit
               </button>
               <button
                 onClick={() => remove(n.id)}
-                className="text-xs text-red-500 hover:text-red-400 flex items-center gap-1 active:scale-95 transition-all duration-200"
+                className="text-[11px] text-red-400 hover:text-red-500 flex items-center gap-0.5 active:scale-95 transition-all duration-200"
               >
-                <Trash2 size={12} /> Delete
+                <Trash2 size={10} /> Del
               </button>
             </div>
           </div>
         ))}
         {filtered.length === 0 && (
-          <p className="text-neutral-500 text-sm col-span-2 flex items-center gap-2">
+          <p className="text-neutral-500 text-sm col-span-2 md:col-span-3 xl:col-span-4 flex items-center gap-2 py-8 justify-center">
             <StickyNote size={16} />
             {search ? "No notes match your search." : "No notes in this category."}
           </p>
