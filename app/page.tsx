@@ -7,30 +7,49 @@ import Link from "next/link";
 import { useMemo, useEffect, useState } from "react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { startNotificationChecks, stopNotificationChecks } from "@/lib/notifications";
+import { TrendingUp, Briefcase, Video, Trophy, Flame, Dumbbell, ArrowRight } from "lucide-react";
 
 function ProgressRing({ percent }: { percent: number }) {
   const radius = 54;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (percent / 100) * circumference;
+  const [offset, setOffset] = useState(circumference);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setOffset(circumference - (percent / 100) * circumference);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [percent, circumference]);
+
   return (
-    <svg width="130" height="130" className="mx-auto">
-      <circle cx="65" cy="65" r={radius} stroke="#e5e7eb" strokeWidth="12" fill="none" className="dark:stroke-neutral-700" />
-      <circle
-        cx="65"
-        cy="65"
-        r={radius}
-        stroke="#10b981"
-        strokeWidth="12"
-        fill="none"
-        strokeDasharray={circumference}
-        strokeDashoffset={offset}
-        strokeLinecap="round"
-        transform="rotate(-90 65 65)"
-      />
-      <text x="65" y="72" textAnchor="middle" fontSize="24" fill="currentColor" fontWeight="bold">
-        {percent}%
-      </text>
-    </svg>
+    <div className="relative">
+      <div className="absolute inset-0 rounded-full bg-emerald-500/10 blur-xl" />
+      <svg width="130" height="130" className="mx-auto relative">
+        <circle cx="65" cy="65" r={radius} stroke="currentColor" strokeWidth="10" fill="none" className="text-neutral-200 dark:text-white/[0.06]" />
+        <circle
+          cx="65"
+          cy="65"
+          r={radius}
+          stroke="url(#emerald-gradient)"
+          strokeWidth="10"
+          fill="none"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          transform="rotate(-90 65 65)"
+          className="progress-ring-circle"
+        />
+        <defs>
+          <linearGradient id="emerald-gradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#34d399" />
+            <stop offset="100%" stopColor="#10b981" />
+          </linearGradient>
+        </defs>
+        <text x="65" y="72" textAnchor="middle" fontSize="26" fill="currentColor" fontWeight="bold" className="tabular-nums">
+          {percent}%
+        </text>
+      </svg>
+    </div>
   );
 }
 
@@ -42,7 +61,7 @@ function getWeekKey(dateStr: string): string {
 }
 
 function getWeekLabel(weekKey: string): string {
-  const [year, w] = weekKey.split("-W");
+  const [, w] = weekKey.split("-W");
   return `W${parseInt(w)}`;
 }
 
@@ -57,13 +76,30 @@ function getLastNWeeks(n: number): string[] {
   return weeks;
 }
 
+function StatCard({ icon: Icon, value, label, color, delay }: {
+  icon: React.ElementType;
+  value: React.ReactNode;
+  label: string;
+  color: string;
+  delay: string;
+}) {
+  return (
+    <div className={`glass rounded-2xl p-5 flex flex-col justify-center animate-in ${delay} transition-all duration-300 hover:scale-[1.02]`}>
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-3 ${color}`}>
+        <Icon size={16} />
+      </div>
+      <p className="text-2xl font-bold text-neutral-900 dark:text-white tabular-nums">{value}</p>
+      <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">{label}</p>
+    </div>
+  );
+}
+
 export default function OverviewPage() {
   const [rawTasks, setRawTasks] = useLocalStorage<Task[]>("jh_tasks", defaultTasks);
   const [applications] = useLocalStorage<Application[]>("jh_applications", []);
   const [profile] = useLocalStorage<Profile>("jh_profile", defaultProfile);
   const [workouts] = useLocalStorage<Workout[]>("jh_workouts", []);
 
-  // Normalize and apply daily resets once on load
   const [tasks, setTasks] = useState<Task[]>(rawTasks);
   useEffect(() => {
     const normalized = rawTasks.map(normalizeTask);
@@ -88,7 +124,6 @@ export default function OverviewPage() {
   ).length;
   const offers = applications.filter((a) => a.status === "Offer").length;
 
-  // Weekly streak
   const streak = useMemo(() => {
     if (applications.length === 0) return 0;
     const weekSet = new Set(applications.map((a) => getWeekKey(a.dateApplied)));
@@ -107,7 +142,25 @@ export default function OverviewPage() {
     return count;
   }, [applications]);
 
-  // Days since last application
+  const exerciseStreak = useMemo(() => {
+    const dates = [...new Set(workouts.filter((w) => w.completed).map((w) => w.date))].sort().reverse();
+    if (dates.length === 0) return 0;
+    let count = 0;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      if (dates.includes(key)) {
+        count++;
+      } else if (i > 0) {
+        break;
+      }
+    }
+    return count;
+  }, [workouts]);
+
   const daysSinceLastApp = useMemo(() => {
     if (applications.length === 0) return null;
     const sorted = [...applications].sort((a, b) => b.dateApplied.localeCompare(a.dateApplied));
@@ -117,7 +170,6 @@ export default function OverviewPage() {
     return diff;
   }, [applications]);
 
-  // Chart data: applications per week (last 8 weeks)
   const appPerWeekData = useMemo(() => {
     const last8 = getLastNWeeks(8);
     const counts: Record<string, number> = {};
@@ -129,7 +181,6 @@ export default function OverviewPage() {
     return last8.map((w) => ({ week: getWeekLabel(w), applications: counts[w] }));
   }, [applications]);
 
-  // Chart data: response rate per week (last 8 weeks)
   const responseRateData = useMemo(() => {
     const last8 = getLastNWeeks(8);
     const totals: Record<string, number> = {};
@@ -153,26 +204,6 @@ export default function OverviewPage() {
 
   const hasEnoughData = applications.length >= 2;
 
-  // Exercise streak
-  const exerciseStreak = useMemo(() => {
-    const dates = [...new Set(workouts.filter((w) => w.completed).map((w) => w.date))].sort().reverse();
-    if (dates.length === 0) return 0;
-    let count = 0;
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 365; i++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
-      if (dates.includes(key)) {
-        count++;
-      } else if (i > 0) {
-        break;
-      }
-    }
-    return count;
-  }, [workouts]);
-
   const phases = [
     { key: "30", label: "Days 1-30" },
     { key: "60", label: "Days 31-60" },
@@ -181,51 +212,50 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">{profile.name}</h1>
-        <p className="text-neutral-500 dark:text-neutral-400">{profile.targetRoles}</p>
+      <div className="animate-in">
+        <h1 className="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight">{profile.name}</h1>
+        <p className="text-neutral-500 dark:text-neutral-400 text-sm mt-0.5">{profile.targetRoles}</p>
       </div>
 
       {daysSinceLastApp !== null && daysSinceLastApp > 3 && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 text-sm text-yellow-700 dark:text-yellow-300">
+        <div className="glass rounded-2xl p-4 text-sm text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/20 animate-in stagger-1">
           It&apos;s been {daysSinceLastApp} days since your last application — keep the momentum going!
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-        <div className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 flex flex-col items-center justify-center">
-          <ProgressRing percent={percent} />
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-2">Overall plan progress</p>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="col-span-2 glass rounded-2xl p-6 flex flex-col items-center justify-center animate-in stagger-1 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-violet-500/5" />
+          <div className="relative">
+            <ProgressRing percent={percent} />
+          </div>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-3 relative">Overall progress</p>
         </div>
-        <div className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 flex flex-col justify-center">
-          <p className="text-3xl font-bold text-neutral-900 dark:text-white">{applications.length}</p>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">Applications sent</p>
-        </div>
-        <div className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 flex flex-col justify-center">
-          <p className="text-3xl font-bold text-neutral-900 dark:text-white">{interviews}</p>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">Interviews / Case studies</p>
-        </div>
-        <div className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 flex flex-col justify-center">
-          <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{offers}</p>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">Offers</p>
-        </div>
-        <div className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 flex flex-col items-center justify-center">
-          <p className="text-3xl font-bold text-orange-500">🔥 {streak}</p>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Week streak</p>
-        </div>
-        <Link
-          href="/exercise"
-          className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 flex flex-col items-center justify-center hover:border-emerald-500 transition"
-        >
-          <p className="text-3xl font-bold text-orange-500">🏋️ {exerciseStreak}</p>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Exercise streak</p>
-        </Link>
+        <StatCard icon={Briefcase} value={applications.length} label="Applications sent" color="bg-blue-500/10 text-blue-500" delay="stagger-2" />
+        <StatCard icon={Video} value={interviews} label="Interviews" color="bg-violet-500/10 text-violet-500" delay="stagger-3" />
+        <StatCard icon={Trophy} value={offers} label="Offers" color="bg-emerald-500/10 text-emerald-500" delay="stagger-4" />
+        <StatCard icon={Flame} value={<><span className="animate-pulse-glow inline-block">🔥</span> {streak}</>} label="Week streak" color="bg-orange-500/10 text-orange-500" delay="stagger-5" />
       </div>
 
+      {exerciseStreak > 0 && (
+        <Link href="/exercise" className="block animate-in stagger-6">
+          <div className="glass rounded-2xl p-4 flex items-center gap-4 hover:bg-white/[0.06] dark:hover:bg-white/[0.04] transition-all duration-200 group">
+            <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
+              <Dumbbell size={18} className="text-orange-500" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-neutral-900 dark:text-white">🔥 {exerciseStreak} day exercise streak</p>
+              <p className="text-xs text-neutral-500">Keep it going — body and mind together.</p>
+            </div>
+            <ArrowRight size={16} className="text-neutral-400 group-hover:text-violet-400 transition-colors" />
+          </div>
+        </Link>
+      )}
+
       <div>
-        <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">Phase progress</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {phases.map((p) => {
+        <h2 className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 mb-3 uppercase tracking-wider">Phase progress</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {phases.map((p, i) => {
             const phaseTasks = tasks.filter((t) => t.phase === p.key);
             const done = phaseTasks.filter((t) => t.completed).length;
             const pct = phaseTasks.length ? Math.round((done / phaseTasks.length) * 100) : 0;
@@ -233,17 +263,17 @@ export default function OverviewPage() {
               <Link
                 key={p.key}
                 href="/plan"
-                className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 hover:border-emerald-500 transition"
+                className={`glass rounded-2xl p-5 hover:bg-white/[0.06] dark:hover:bg-white/[0.04] transition-all duration-300 animate-in hover:scale-[1.02] stagger-${i + 7}`}
               >
-                <p className="text-neutral-900 dark:text-white font-medium">{p.label}</p>
-                <div className="w-full bg-neutral-200 dark:bg-neutral-800 rounded-full h-2 mt-3">
+                <p className="text-neutral-900 dark:text-white font-medium text-sm">{p.label}</p>
+                <div className="w-full bg-neutral-200 dark:bg-white/[0.06] rounded-full h-1.5 mt-3 overflow-hidden">
                   <div
-                    className="bg-emerald-500 h-2 rounded-full transition-all"
+                    className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-1.5 rounded-full transition-all duration-500 ease-out"
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <p className="text-xs text-neutral-500 mt-2">
-                  {done}/{phaseTasks.length} tasks done
+                <p className="text-xs text-neutral-500 mt-2 tabular-nums">
+                  {done}/{phaseTasks.length} tasks
                 </p>
               </Link>
             );
@@ -251,19 +281,25 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5">
-          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">Applications per week</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="glass rounded-2xl p-5 animate-in stagger-10">
+          <h2 className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 mb-3 uppercase tracking-wider">Applications per week</h2>
           {hasEnoughData ? (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={appPerWeekData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-neutral-700" />
-                <XAxis dataKey="week" tick={{ fontSize: 12, fill: '#737373' }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#737373' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-neutral-200 dark:text-white/[0.06]" />
+                <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#737373' }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#737373' }} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#171717', border: '1px solid #404040', borderRadius: '8px', color: '#fff' }}
+                  contentStyle={{ backgroundColor: 'rgba(15,23,42,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', backdropFilter: 'blur(8px)' }}
                 />
-                <Bar dataKey="applications" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="applications" fill="url(#emerald-bar)" radius={[6, 6, 0, 0]} animationDuration={800} />
+                <defs>
+                  <linearGradient id="emerald-bar" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#34d399" />
+                    <stop offset="100%" stopColor="#10b981" />
+                  </linearGradient>
+                </defs>
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -271,19 +307,19 @@ export default function OverviewPage() {
           )}
         </div>
 
-        <div className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5">
-          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">Response rate over time</h2>
+        <div className="glass rounded-2xl p-5 animate-in stagger-11">
+          <h2 className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 mb-3 uppercase tracking-wider">Response rate</h2>
           {hasEnoughData ? (
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={responseRateData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-neutral-700" />
-                <XAxis dataKey="week" tick={{ fontSize: 12, fill: '#737373' }} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#737373' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-neutral-200 dark:text-white/[0.06]" />
+                <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#737373' }} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#737373' }} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#171717', border: '1px solid #404040', borderRadius: '8px', color: '#fff' }}
+                  contentStyle={{ backgroundColor: 'rgba(15,23,42,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', backdropFilter: 'blur(8px)' }}
                   formatter={(value) => [`${value}%`, "Response rate"]}
                 />
-                <Line type="monotone" dataKey="rate" stroke="#10b981" strokeWidth={2} dot={{ fill: "#10b981" }} />
+                <Line type="monotone" dataKey="rate" stroke="#a78bfa" strokeWidth={2} dot={{ fill: "#a78bfa", r: 4 }} animationDuration={800} />
               </LineChart>
             </ResponsiveContainer>
           ) : (

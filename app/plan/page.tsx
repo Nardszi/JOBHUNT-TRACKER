@@ -4,6 +4,7 @@ import { useLocalStorage } from "@/lib/useLocalStorage";
 import { defaultTasks, normalizeTask, dailyResetTasks } from "@/lib/planData";
 import { Task } from "@/lib/types";
 import { useState, useEffect, useCallback } from "react";
+import { Check, Minus, Plus, RotateCcw } from "lucide-react";
 
 const phases = [
   { key: "today", label: "Today" },
@@ -28,9 +29,9 @@ function dayToPhase(day: number): "30" | "60" | "90" {
 }
 
 function getProgressColor(pct: number): string {
-  if (pct >= 80) return "bg-emerald-500";
-  if (pct >= 34) return "bg-amber-500";
-  return "bg-rose-500";
+  if (pct >= 80) return "from-emerald-500 to-emerald-400";
+  if (pct >= 34) return "from-amber-500 to-amber-400";
+  return "from-rose-500 to-rose-400";
 }
 
 function ProgressTask({ task, onIncrement, onDecrement, onReset }: {
@@ -45,10 +46,14 @@ function ProgressTask({ task, onIncrement, onDecrement, onReset }: {
   const done = task.completed;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       <div className="flex items-center gap-2">
-        {done && <span className="text-emerald-500 text-sm">✓</span>}
-        <span className={done ? "line-through text-neutral-400 dark:text-neutral-500" : "text-neutral-700 dark:text-neutral-200"}>
+        {done && (
+          <span className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
+            <Check size={12} className="text-emerald-500" />
+          </span>
+        )}
+        <span className={`text-sm transition-all duration-200 ${done ? "line-through text-neutral-400 dark:text-neutral-500" : "text-neutral-700 dark:text-neutral-200"}`}>
           {task.title}
         </span>
       </div>
@@ -57,37 +62,38 @@ function ProgressTask({ task, onIncrement, onDecrement, onReset }: {
           <button
             onClick={onDecrement}
             disabled={current <= 0}
-            className="w-9 h-9 flex items-center justify-center rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 disabled:opacity-30 disabled:cursor-not-allowed text-lg font-bold"
+            className="w-9 h-9 flex items-center justify-center rounded-xl glass text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200/50 dark:hover:bg-white/[0.08] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150"
           >
-            −
+            <Minus size={14} />
           </button>
-          <span className="w-20 text-center text-sm font-medium text-neutral-900 dark:text-white">
+          <span className="w-20 text-center text-sm font-medium text-neutral-900 dark:text-white tabular-nums animate-count-up" key={current}>
             {current}/{target}
           </span>
           <button
             onClick={onIncrement}
-            className="w-9 h-9 flex items-center justify-center rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-lg font-bold"
+            className="w-9 h-9 flex items-center justify-center rounded-xl glass text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200/50 dark:hover:bg-white/[0.08] active:scale-95 transition-all duration-150"
           >
-            +
+            <Plus size={14} />
           </button>
         </div>
         {task.resetCadence === "none" && onReset && current > 0 && (
           <button
             onClick={onReset}
-            className="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+            className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors p-1"
+            title="Reset counter"
           >
-            reset
+            <RotateCcw size={12} />
           </button>
         )}
       </div>
-      <div className="w-full bg-neutral-200 dark:bg-neutral-800 rounded-full h-2">
+      <div className="w-full bg-neutral-200 dark:bg-white/[0.06] rounded-full h-1.5 overflow-hidden">
         <div
-          className={`h-2 rounded-full transition-all ${getProgressColor(pct)}`}
+          className={`h-1.5 rounded-full bg-gradient-to-r ${getProgressColor(pct)} transition-all duration-500 ease-out`}
           style={{ width: `${pct}%` }}
         />
       </div>
       {task.resetCadence === "daily" && (
-        <p className="text-xs text-neutral-400">resets tomorrow</p>
+        <p className="text-[11px] text-neutral-400 tracking-wide">resets tomorrow</p>
       )}
     </div>
   );
@@ -99,7 +105,6 @@ export default function PlanPage() {
   const [tab, setTab] = useState<TabKey>("today");
   const [editingStart, setEditingStart] = useState(false);
 
-  // Normalize tasks on first load and apply daily resets
   const [tasks, setTasks] = useState<Task[]>([]);
   const [initialized, setInitialized] = useState(false);
 
@@ -108,7 +113,6 @@ export default function PlanPage() {
     const reset = dailyResetTasks(normalized);
     setTasks(reset);
     setInitialized(true);
-    // Only run reset check if tasks changed
     if (JSON.stringify(reset) !== JSON.stringify(rawTasks)) {
       setRawTasks(reset);
     }
@@ -131,11 +135,11 @@ export default function PlanPage() {
     );
   }
 
-  const incrementProgress = useCallback((id: string) => {
+  const updateProgress = useCallback((id: string, delta: number) => {
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id !== id || t.kind !== "progress") return t;
-        const next = (t.current ?? 0) + 1;
+        const next = Math.max(0, (t.current ?? 0) + delta);
         const target = t.target ?? 1;
         return { ...t, current: next, completed: next >= target };
       })
@@ -143,26 +147,7 @@ export default function PlanPage() {
     setRawTasks((prev) =>
       prev.map((t) => {
         if (t.id !== id || t.kind !== "progress") return t;
-        const next = (t.current ?? 0) + 1;
-        const target = t.target ?? 1;
-        return { ...t, current: next, completed: next >= target };
-      })
-    );
-  }, [setRawTasks]);
-
-  const decrementProgress = useCallback((id: string) => {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id !== id || t.kind !== "progress") return t;
-        const next = Math.max(0, (t.current ?? 0) - 1);
-        const target = t.target ?? 1;
-        return { ...t, current: next, completed: next >= target };
-      })
-    );
-    setRawTasks((prev) =>
-      prev.map((t) => {
-        if (t.id !== id || t.kind !== "progress") return t;
-        const next = Math.max(0, (t.current ?? 0) - 1);
+        const next = Math.max(0, (t.current ?? 0) + delta);
         const target = t.target ?? 1;
         return { ...t, current: next, completed: next >= target };
       })
@@ -185,11 +170,11 @@ export default function PlanPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 animate-in">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">30-60-90 Day Plan</h1>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-            Day {dayNumber} of 90 · Phase: {currentPhase === "30" ? "Days 1-30" : currentPhase === "60" ? "Days 31-60" : "Days 61-90"}
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight">30-60-90 Day Plan</h1>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
+            Day <span className="font-medium text-violet-600 dark:text-violet-400 tabular-nums">{dayNumber}</span> of 90 · Phase: {currentPhase === "30" ? "Days 1-30" : currentPhase === "60" ? "Days 31-60" : "Days 61-90"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -199,11 +184,11 @@ export default function PlanPage() {
                 type="date"
                 value={planStartDate}
                 onChange={(e) => setPlanStartDate(e.target.value)}
-                className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg px-3 py-1 text-sm text-neutral-900 dark:text-white"
+                className="glass rounded-xl px-3 py-1.5 text-sm text-neutral-900 dark:text-white"
               />
               <button
                 onClick={() => setEditingStart(false)}
-                className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline"
+                className="text-xs text-violet-600 dark:text-violet-400 hover:underline"
               >
                 Done
               </button>
@@ -211,7 +196,7 @@ export default function PlanPage() {
           ) : (
             <button
               onClick={() => setEditingStart(true)}
-              className="text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
+              className="text-xs text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
             >
               Start: {planStartDate} ✏️
             </button>
@@ -219,50 +204,60 @@ export default function PlanPage() {
         </div>
       </div>
 
-      <div className="flex gap-2 border-b border-neutral-200 dark:border-neutral-800 overflow-x-auto">
+      <div className="flex gap-1 border-b border-neutral-200 dark:border-white/[0.08] overflow-x-auto">
         {phases.map((p) => (
           <button
             key={p.key}
             onClick={() => setTab(p.key)}
-            className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${
+            className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-all duration-200 relative ${
               tab === p.key
-                ? "text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-500"
+                ? "text-violet-600 dark:text-violet-400"
                 : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
             }`}
           >
             {p.label}
+            {tab === p.key && (
+              <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-violet-500 to-violet-400 rounded-full" />
+            )}
           </button>
         ))}
       </div>
 
       {tab === "today" ? (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {todayTasks.length > 0 ? (
-            <div className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5">
-              <h2 className="text-neutral-900 dark:text-white font-semibold mb-3">
+            <div className="glass rounded-2xl p-5 animate-in">
+              <h2 className="text-neutral-900 dark:text-white font-semibold mb-4 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 Today&apos;s focus
               </h2>
               <ul className="space-y-4">
-                {todayTasks.map((t) => (
-                  <li key={t.id}>
+                {todayTasks.map((t, i) => (
+                  <li key={t.id} className={`animate-in stagger-${i + 1}`}>
                     {t.kind === "progress" ? (
                       <ProgressTask
                         task={t}
-                        onIncrement={() => incrementProgress(t.id)}
-                        onDecrement={() => decrementProgress(t.id)}
+                        onIncrement={() => updateProgress(t.id, 1)}
+                        onDecrement={() => updateProgress(t.id, -1)}
                         onReset={() => resetProgress(t.id)}
                       />
                     ) : (
-                      <div className="flex items-start gap-3">
-                        <input
-                          type="checkbox"
-                          checked={t.completed}
-                          onChange={() => toggleBinary(t.id)}
-                          className="mt-1 h-4 w-4 accent-emerald-500"
-                        />
+                      <div className="flex items-start gap-3 group">
+                        <button
+                          onClick={() => toggleBinary(t.id)}
+                          className={`mt-0.5 w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all duration-200 active:scale-90 ${
+                            t.completed
+                              ? "bg-emerald-500 border-emerald-500"
+                              : "border-neutral-300 dark:border-white/[0.2] group-hover:border-violet-400"
+                          }`}
+                        >
+                          {t.completed && <Check size={12} className="text-white" />}
+                        </button>
                         <div>
-                          <span className="text-neutral-700 dark:text-neutral-200">{t.title}</span>
-                          <span className="ml-2 text-xs text-neutral-400">({t.section})</span>
+                          <span className={`text-sm transition-all duration-200 ${t.completed ? "line-through text-neutral-400 dark:text-neutral-500" : "text-neutral-700 dark:text-neutral-200"}`}>
+                            {t.title}
+                          </span>
+                          <span className="ml-2 text-[11px] text-neutral-400">({t.section})</span>
                         </div>
                       </div>
                     )}
@@ -271,7 +266,7 @@ export default function PlanPage() {
               </ul>
             </div>
           ) : (
-            <div className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-8 text-center">
+            <div className="glass rounded-2xl p-8 text-center animate-in">
               <p className="text-neutral-500 dark:text-neutral-400">
                 {dayNumber > 90
                   ? "You've completed the 90-day plan! Time to evaluate your progress."
@@ -282,30 +277,34 @@ export default function PlanPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {sections.map((section) => (
-            <div key={section} className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5">
-              <h2 className="text-neutral-900 dark:text-white font-semibold mb-3">{section}</h2>
+          {sections.map((section, si) => (
+            <div key={section} className={`glass rounded-2xl p-5 animate-in stagger-${si + 1}`}>
+              <h2 className="text-neutral-900 dark:text-white font-semibold mb-4">{section}</h2>
               <ul className="space-y-4">
                 {phaseTasks
                   .filter((t) => t.section === section)
-                  .map((t) => (
-                    <li key={t.id}>
+                  .map((t, i) => (
+                    <li key={t.id} className={`animate-in stagger-${i + 1}`}>
                       {t.kind === "progress" ? (
                         <ProgressTask
                           task={t}
-                          onIncrement={() => incrementProgress(t.id)}
-                          onDecrement={() => decrementProgress(t.id)}
+                          onIncrement={() => updateProgress(t.id, 1)}
+                          onDecrement={() => updateProgress(t.id, -1)}
                           onReset={() => resetProgress(t.id)}
                         />
                       ) : (
-                        <div className="flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            checked={t.completed}
-                            onChange={() => toggleBinary(t.id)}
-                            className="mt-1 h-4 w-4 accent-emerald-500"
-                          />
-                          <span className={t.completed ? "line-through text-neutral-400 dark:text-neutral-500" : "text-neutral-700 dark:text-neutral-200"}>
+                        <div className="flex items-start gap-3 group">
+                          <button
+                            onClick={() => toggleBinary(t.id)}
+                            className={`mt-0.5 w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all duration-200 active:scale-90 ${
+                              t.completed
+                                ? "bg-emerald-500 border-emerald-500"
+                                : "border-neutral-300 dark:border-white/[0.2] group-hover:border-violet-400"
+                            }`}
+                          >
+                            {t.completed && <Check size={12} className="text-white" />}
+                          </button>
+                          <span className={`text-sm transition-all duration-200 ${t.completed ? "line-through text-neutral-400 dark:text-neutral-500" : "text-neutral-700 dark:text-neutral-200"}`}>
                             {t.title}
                           </span>
                         </div>

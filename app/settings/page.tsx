@@ -13,6 +13,7 @@ import {
   getNotificationTime,
   setNotificationTime,
 } from "@/lib/notifications";
+import { Download, Upload, Trash2, Bell, BellOff, User, Shield } from "lucide-react";
 
 const CURRENT_VERSION = 1;
 
@@ -114,15 +115,16 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6 max-w-lg">
-      <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Settings / Profile</h1>
+      <h1 className="text-2xl font-bold text-neutral-900 dark:text-white animate-in stagger-1">Settings / Profile</h1>
 
-      <div className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-3">
+      <div className="glass rounded-2xl p-5 space-y-3 animate-in stagger-2">
+        <h2 className="text-neutral-900 dark:text-white font-semibold flex items-center gap-2"><User className="w-4 h-4" /> Profile</h2>
         <div>
           <label className="text-xs text-neutral-500">Full Name</label>
           <input
             value={profile.name}
             onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-            className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1"
+            className="w-full glass rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
           />
         </div>
         <div>
@@ -130,7 +132,7 @@ export default function SettingsPage() {
           <input
             value={profile.targetRoles}
             onChange={(e) => setProfile({ ...profile, targetRoles: e.target.value })}
-            className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1"
+            className="w-full glass rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
           />
         </div>
         <div>
@@ -138,7 +140,7 @@ export default function SettingsPage() {
           <input
             value={profile.github}
             onChange={(e) => setProfile({ ...profile, github: e.target.value })}
-            className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1"
+            className="w-full glass rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
           />
         </div>
         <div>
@@ -146,7 +148,7 @@ export default function SettingsPage() {
           <input
             value={profile.email}
             onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-            className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1"
+            className="w-full glass rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
           />
         </div>
         <div>
@@ -154,13 +156,15 @@ export default function SettingsPage() {
           <input
             value={profile.phone}
             onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-            className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1"
+            className="w-full glass rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
           />
         </div>
       </div>
 
-      <div className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-3">
-        <h2 className="text-neutral-900 dark:text-white font-semibold">Reminders</h2>
+      <div className="glass rounded-2xl p-5 space-y-3 animate-in stagger-3">
+        <h2 className="text-neutral-900 dark:text-white font-semibold flex items-center gap-2">
+          {notifEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />} Reminders
+        </h2>
         {!notifSupported ? (
           <p className="text-sm text-neutral-500">
             Notifications are not supported in this browser.
@@ -178,8 +182,8 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={toggleNotifications}
-                className={`relative w-11 h-6 rounded-full transition-colors ${
-                  notifEnabled ? "bg-emerald-500" : "bg-neutral-300 dark:bg-neutral-700"
+                className={`relative w-11 h-6 rounded-full transition-all duration-200 active:scale-95 ${
+                  notifEnabled ? "bg-violet-500" : "bg-neutral-300 dark:bg-neutral-700"
                 }`}
               >
                 <span
@@ -196,7 +200,7 @@ export default function SettingsPage() {
                   type="time"
                   value={notifTime}
                   onChange={(e) => handleNotifTimeChange(e.target.value)}
-                  className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg px-3 py-1 text-sm text-neutral-900 dark:text-white"
+                  className="glass rounded-xl px-3 py-1 text-sm text-neutral-900 dark:text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
                 />
               </div>
             )}
@@ -207,23 +211,23 @@ export default function SettingsPage() {
         )}
       </div>
 
-      <div className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-3">
-        <h2 className="text-neutral-900 dark:text-white font-semibold">Data Backup</h2>
+      <div className="glass rounded-2xl p-5 space-y-3 animate-in stagger-4">
+        <h2 className="text-neutral-900 dark:text-white font-semibold flex items-center gap-2"><Shield className="w-4 h-4" /> Data Backup</h2>
         <p className="text-sm text-neutral-500">
           Export all your data as a JSON file, or import from a previous backup.
         </p>
         <div className="flex gap-3">
           <button
             onClick={exportData}
-            className="bg-neutral-100 dark:bg-neutral-900 hover:bg-neutral-200 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 px-4 py-2 rounded-lg text-sm font-medium border border-neutral-300 dark:border-neutral-700"
+            className="glass hover:bg-white/[0.06] text-neutral-700 dark:text-neutral-300 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all duration-200 active:scale-95"
           >
-            Export Data
+            <Download className="w-4 h-4" /> Export Data
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="bg-neutral-100 dark:bg-neutral-900 hover:bg-neutral-200 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 px-4 py-2 rounded-lg text-sm font-medium border border-neutral-300 dark:border-neutral-700"
+            className="glass hover:bg-white/[0.06] text-neutral-700 dark:text-neutral-300 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all duration-200 active:scale-95"
           >
-            Import Data
+            <Upload className="w-4 h-4" /> Import Data
           </button>
           <input
             ref={fileInputRef}
@@ -235,16 +239,16 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-neutral-950 border border-red-200 dark:border-red-900/50 rounded-xl p-5">
-        <h2 className="text-neutral-900 dark:text-white font-semibold mb-2">Danger Zone</h2>
+      <div className="glass rounded-2xl border-rose-500/20 bg-rose-500/5 p-5 animate-in stagger-5">
+        <h2 className="text-neutral-900 dark:text-white font-semibold mb-2 flex items-center gap-2"><Trash2 className="w-4 h-4" /> Danger Zone</h2>
         <p className="text-sm text-neutral-500 mb-3">
           All data is stored only in this browser (localStorage). Clearing it cannot be undone.
         </p>
         <button
           onClick={clearAllData}
-          className="bg-red-100 dark:bg-red-900/50 hover:bg-red-200 dark:hover:bg-red-900 text-red-700 dark:text-red-300 px-4 py-2 rounded-lg text-sm font-medium"
+          className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 active:scale-95 flex items-center gap-2"
         >
-          Clear All Data
+          <Trash2 className="w-4 h-4" /> Clear All Data
         </button>
       </div>
     </div>

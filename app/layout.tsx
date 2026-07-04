@@ -40,9 +40,9 @@ export default function RootLayout({
       <head>
         <ThemeScript />
       </head>
-      <body className="min-h-full flex flex-col md:flex-row bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100">
+      <body className="min-h-full flex flex-col md:flex-row bg-neutral-50 dark:bg-[#09090b] text-neutral-900 dark:text-neutral-100 font-sans">
         <Sidebar />
-        <main className="flex-1 p-4 md:p-8 max-w-5xl mx-auto w-full">{children}</main>
+        <main className="flex-1 p-4 md:p-8 max-w-5xl mx-auto w-full page-enter">{children}</main>
       </body>
     </html>
   );
