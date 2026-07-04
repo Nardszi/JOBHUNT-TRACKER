@@ -3,9 +3,52 @@
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { defaultProfile } from "@/lib/planData";
 import { Profile } from "@/lib/types";
+import { useRef, useState, useEffect } from "react";
+import {
+  isNotificationsSupported,
+  getNotificationPermission,
+  requestNotificationPermission,
+  getNotificationsEnabled,
+  setNotificationsEnabled,
+  getNotificationTime,
+  setNotificationTime,
+} from "@/lib/notifications";
+
+const CURRENT_VERSION = 1;
 
 export default function SettingsPage() {
   const [profile, setProfile] = useLocalStorage<Profile>("jh_profile", defaultProfile);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [notifSupported, setNotifSupported] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("unsupported");
+  const [notifEnabled, setNotifEnabled] = useState(false);
+  const [notifTime, setNotifTimeState] = useState("09:00");
+
+  useEffect(() => {
+    setNotifSupported(isNotificationsSupported());
+    setNotifPermission(getNotificationPermission());
+    setNotifEnabled(getNotificationsEnabled());
+    setNotifTimeState(getNotificationTime());
+  }, []);
+
+  async function toggleNotifications() {
+    if (notifEnabled) {
+      setNotificationsEnabled(false);
+      setNotifEnabled(false);
+      return;
+    }
+    const perm = await requestNotificationPermission();
+    setNotifPermission(perm);
+    if (perm === "granted") {
+      setNotificationsEnabled(true);
+      setNotifEnabled(true);
+    }
+  }
+
+  function handleNotifTimeChange(time: string) {
+    setNotifTimeState(time);
+    setNotificationTime(time);
+  }
 
   function clearAllData() {
     if (confirm("This will erase all tasks, applications, projects, and notes stored in this browser. Continue?")) {
@@ -14,17 +57,72 @@ export default function SettingsPage() {
     }
   }
 
+  function exportData() {
+    const data: Record<string, unknown> = { version: CURRENT_VERSION, exportedAt: new Date().toISOString() };
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("jh_")) {
+        try {
+          data[key] = JSON.parse(localStorage.getItem(key) || "null");
+        } catch {
+          data[key] = localStorage.getItem(key);
+        }
+      }
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `jobhunt-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importData(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const raw = JSON.parse(ev.target?.result as string);
+        if (typeof raw !== "object" || raw === null) {
+          alert("Invalid file format. Please select a valid Job Hunt HQ backup file.");
+          return;
+        }
+        if (raw.version === undefined) {
+          alert("Unrecognized backup format (missing version field). Please select a valid Job Hunt HQ backup file.");
+          return;
+        }
+        if (!confirm(`Import data from backup (version ${raw.version})? This will overwrite your current data.`)) {
+          return;
+        }
+        for (const [key, value] of Object.entries(raw)) {
+          if (key === "version" || key === "exportedAt") continue;
+          if (key.startsWith("jh_")) {
+            localStorage.setItem(key, typeof value === "string" ? value : JSON.stringify(value));
+          }
+        }
+        window.location.reload();
+      } catch {
+        alert("Failed to parse the file. Make sure it is a valid JSON backup.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
   return (
     <div className="space-y-6 max-w-lg">
-      <h1 className="text-2xl font-bold text-white">Settings / Profile</h1>
+      <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Settings / Profile</h1>
 
-      <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-5 space-y-3">
+      <div className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-3">
         <div>
           <label className="text-xs text-neutral-500">Full Name</label>
           <input
             value={profile.name}
             onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-            className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white mt-1"
+            className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1"
           />
         </div>
         <div>
@@ -32,7 +130,7 @@ export default function SettingsPage() {
           <input
             value={profile.targetRoles}
             onChange={(e) => setProfile({ ...profile, targetRoles: e.target.value })}
-            className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white mt-1"
+            className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1"
           />
         </div>
         <div>
@@ -40,7 +138,7 @@ export default function SettingsPage() {
           <input
             value={profile.github}
             onChange={(e) => setProfile({ ...profile, github: e.target.value })}
-            className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white mt-1"
+            className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1"
           />
         </div>
         <div>
@@ -48,7 +146,7 @@ export default function SettingsPage() {
           <input
             value={profile.email}
             onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-            className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white mt-1"
+            className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1"
           />
         </div>
         <div>
@@ -56,19 +154,95 @@ export default function SettingsPage() {
           <input
             value={profile.phone}
             onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-            className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white mt-1"
+            className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1"
           />
         </div>
       </div>
 
-      <div className="bg-neutral-950 border border-red-900/50 rounded-xl p-5">
-        <h2 className="text-white font-semibold mb-2">Danger Zone</h2>
+      <div className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-3">
+        <h2 className="text-neutral-900 dark:text-white font-semibold">Reminders</h2>
+        {!notifSupported ? (
+          <p className="text-sm text-neutral-500">
+            Notifications are not supported in this browser.
+          </p>
+        ) : notifPermission === "denied" ? (
+          <p className="text-sm text-neutral-500">
+            Notification permission was denied. Please enable it in your browser settings.
+          </p>
+        ) : (
+          <>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-neutral-700 dark:text-neutral-300">Enable reminders</p>
+                <p className="text-xs text-neutral-500">Get daily task nudges and follow-up reminders</p>
+              </div>
+              <button
+                onClick={toggleNotifications}
+                className={`relative w-11 h-6 rounded-full transition-colors ${
+                  notifEnabled ? "bg-emerald-500" : "bg-neutral-300 dark:bg-neutral-700"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                    notifEnabled ? "translate-x-5" : ""
+                  }`}
+                />
+              </button>
+            </div>
+            {notifEnabled && (
+              <div className="flex items-center gap-3">
+                <label className="text-xs text-neutral-500">Daily reminder time</label>
+                <input
+                  type="time"
+                  value={notifTime}
+                  onChange={(e) => handleNotifTimeChange(e.target.value)}
+                  className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg px-3 py-1 text-sm text-neutral-900 dark:text-white"
+                />
+              </div>
+            )}
+            <p className="text-xs text-neutral-400 italic">
+              Note: Background notifications have limited support on iOS Safari PWAs. Reminders only work while the app is open.
+            </p>
+          </>
+        )}
+      </div>
+
+      <div className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-3">
+        <h2 className="text-neutral-900 dark:text-white font-semibold">Data Backup</h2>
+        <p className="text-sm text-neutral-500">
+          Export all your data as a JSON file, or import from a previous backup.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={exportData}
+            className="bg-neutral-100 dark:bg-neutral-900 hover:bg-neutral-200 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 px-4 py-2 rounded-lg text-sm font-medium border border-neutral-300 dark:border-neutral-700"
+          >
+            Export Data
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="bg-neutral-100 dark:bg-neutral-900 hover:bg-neutral-200 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 px-4 py-2 rounded-lg text-sm font-medium border border-neutral-300 dark:border-neutral-700"
+          >
+            Import Data
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={importData}
+            className="hidden"
+          />
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-neutral-950 border border-red-200 dark:border-red-900/50 rounded-xl p-5">
+        <h2 className="text-neutral-900 dark:text-white font-semibold mb-2">Danger Zone</h2>
         <p className="text-sm text-neutral-500 mb-3">
           All data is stored only in this browser (localStorage). Clearing it cannot be undone.
         </p>
         <button
           onClick={clearAllData}
-          className="bg-red-900/50 hover:bg-red-900 text-red-300 px-4 py-2 rounded-lg text-sm font-medium"
+          className="bg-red-100 dark:bg-red-900/50 hover:bg-red-200 dark:hover:bg-red-900 text-red-700 dark:text-red-300 px-4 py-2 rounded-lg text-sm font-medium"
         >
           Clear All Data
         </button>
