@@ -9,7 +9,14 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
   useEffect(() => {
     try {
       const item = window.localStorage.getItem(key);
-      if (item) setValue(JSON.parse(item));
+      if (item) {
+        const parsed = JSON.parse(item);
+        if (Array.isArray(parsed) && parsed.length === 0 && Array.isArray(initialValue) && initialValue.length > 0) {
+          // Empty stored array — use initial seed value instead
+        } else {
+          setValue(parsed);
+        }
+      }
     } catch (e) {
       console.error("Failed to load localStorage key", key, e);
     }
