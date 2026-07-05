@@ -8,8 +8,8 @@ export default function KeyboardShortcutsProvider({ children }: { children: Reac
   return (
     <>
       {children}
-      <div id="keyboard-shortcuts-help" className="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[100]">
-        <div className="bg-white dark:bg-neutral-900 rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-neutral-200 dark:border-white/[0.08]">
+      <div id="keyboard-shortcuts-help" className="hidden fixed inset-0 bg-black/50 modal-backdrop flex items-center justify-center p-4 z-[100]">
+        <div className="bg-white dark:bg-neutral-900 rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-neutral-200 dark:border-white/[0.08] modal-content">
           <h2 className="text-neutral-900 dark:text-white font-semibold mb-4">Keyboard Shortcuts</h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">

@@ -402,7 +402,7 @@ export default function PortfolioPage() {
 
       {/* Edit Modal */}
       {editing && (
-        <div className="modal-backdrop fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+        <div className="modal-backdrop fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="modal-content glass rounded-2xl p-6 w-full max-w-lg space-y-3">
             <h2 className="text-neutral-900 dark:text-white font-semibold text-lg">
               Edit {editing.name}

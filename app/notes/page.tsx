@@ -56,12 +56,12 @@ function ViewModal({
   return (
     <div
       ref={backdropRef}
-      className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 animate-in"
+      className="fixed inset-0 bg-black/50 modal-backdrop flex items-center justify-center p-4 z-50 animate-in"
       onMouseDown={(e) => {
         if (e.target === backdropRef.current) onClose();
       }}
     >
-      <div className="bg-white dark:bg-neutral-900 rounded-2xl p-6 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl border border-neutral-200 dark:border-white/[0.08] animate-in stagger-1">
+      <div className="bg-white dark:bg-neutral-900 rounded-2xl p-6 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl border border-neutral-200 dark:border-white/[0.08] modal-content animate-in stagger-1">
         <div className="flex justify-between items-start gap-3 mb-4">
           <div className="flex-1 min-w-0">
             <h2 className="text-neutral-900 dark:text-white font-semibold text-lg leading-snug">
@@ -144,12 +144,12 @@ function EditModal({
   return (
     <div
       ref={backdropRef}
-      className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 animate-in"
+      className="fixed inset-0 bg-black/50 modal-backdrop flex items-center justify-center p-4 z-50 animate-in"
       onMouseDown={(e) => {
         if (e.target === backdropRef.current) onClose();
       }}
     >
-      <div className="bg-white dark:bg-neutral-900 rounded-2xl p-6 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl border border-neutral-200 dark:border-white/[0.08] animate-in stagger-1">
+      <div className="bg-white dark:bg-neutral-900 rounded-2xl p-6 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl border border-neutral-200 dark:border-white/[0.08] modal-content animate-in stagger-1">
         <h2 className="text-neutral-900 dark:text-white font-semibold text-lg flex items-center gap-2 mb-3">
           <StickyNote size={18} className="text-emerald-400" /> Note
         </h2>

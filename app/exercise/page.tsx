@@ -834,7 +834,7 @@ export default function ExercisePage() {
       )}
 
       {editingTemplate && (
-        <div className="fixed inset-0 bg-black/60 modal-backdrop flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/50 modal-backdrop flex items-center justify-center p-4 z-50">
           <div className="glass rounded-2xl p-6 w-full max-w-lg space-y-3 modal-content animate-in max-h-[90vh] overflow-y-auto">
             <h2 className="text-neutral-900 dark:text-white font-semibold text-lg">
               {templates.some((t) => t.id === editingTemplate.id) ? "Edit" : "New"} Template

@@ -611,7 +611,7 @@ export default function ApplicationsPage() {
       )}
 
       {editing && (
-        <div className="fixed inset-0 bg-black/60 modal-backdrop flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/50 modal-backdrop flex items-center justify-center p-4 z-50">
           <div className="glass rounded-2xl p-6 w-full max-w-lg space-y-3 modal-content">
             <h2 className="text-neutral-900 dark:text-white font-semibold text-lg">
               {apps.some((a) => a.id === editing.id) ? "Edit" : "Add"} Application
@@ -709,12 +709,12 @@ export default function ApplicationsPage() {
       {showBulkImport && (
         <div
           ref={bulkBackdropRef}
-          className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 animate-in"
+          className="fixed inset-0 bg-black/50 modal-backdrop flex items-center justify-center p-4 z-50 animate-in"
           onMouseDown={(e) => {
             if (e.target === bulkBackdropRef.current) setShowBulkImport(false);
           }}
         >
-          <div ref={bulkModalRef} className="bg-white dark:bg-neutral-900 rounded-2xl p-6 w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl border border-neutral-200 dark:border-white/[0.08] animate-in stagger-1">
+          <div ref={bulkModalRef} className="bg-white dark:bg-neutral-900 rounded-2xl p-6 w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl border border-neutral-200 dark:border-white/[0.08] modal-content animate-in stagger-1">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-neutral-900 dark:text-white font-semibold text-lg flex items-center gap-2">
                 <FileText size={18} className="text-violet-400" />

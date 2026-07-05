@@ -70,8 +70,8 @@ function CelebrationModal({
   const nextLabel = phase === "30" ? "Days 31-60" : phase === "60" ? "Days 61-90" : null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 animate-in">
-      <div className="bg-white dark:bg-neutral-900 rounded-2xl p-6 w-full max-w-sm text-center shadow-2xl border border-neutral-200 dark:border-white/[0.08] animate-in stagger-1">
+    <div className="fixed inset-0 bg-black/50 modal-backdrop flex items-center justify-center p-4 z-50 animate-in">
+      <div className="bg-white dark:bg-neutral-900 rounded-2xl p-6 w-full max-w-sm text-center shadow-2xl border border-neutral-200 dark:border-white/[0.08] modal-content animate-in stagger-1">
         <PartyPopper size={40} className="mx-auto text-amber-400 mb-3" />
         <h2 className="text-lg font-bold text-neutral-900 dark:text-white mb-2">
           {label} complete!
@@ -148,12 +148,12 @@ function AddTaskModal({
   return (
     <div
       ref={backdropRef}
-      className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 animate-in"
+      className="fixed inset-0 bg-black/50 modal-backdrop flex items-center justify-center p-4 z-50 animate-in"
       onMouseDown={(e) => {
         if (e.target === backdropRef.current) onClose();
       }}
     >
-      <div className="bg-white dark:bg-neutral-900 rounded-2xl p-6 w-full max-w-md shadow-2xl border border-neutral-200 dark:border-white/[0.08] animate-in stagger-1">
+      <div className="bg-white dark:bg-neutral-900 rounded-2xl p-6 w-full max-w-md shadow-2xl border border-neutral-200 dark:border-white/[0.08] modal-content animate-in stagger-1">
         <h2 className="text-lg font-bold text-neutral-900 dark:text-white mb-4">Add Task</h2>
         <div className="space-y-3">
           <div>
