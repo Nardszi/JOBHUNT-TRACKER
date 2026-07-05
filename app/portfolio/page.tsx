@@ -49,7 +49,19 @@ const LANG_COLORS: Record<string, string> = {
   Swift: "bg-orange-500/15 text-orange-500",
 };
 
-function RepoCard({ repo }: { repo: GitHubRepo }) {
+function RepoCard({
+  repo,
+  isPinned,
+  onTogglePin,
+  customDescription,
+  onEditDescription,
+}: {
+  repo: GitHubRepo;
+  isPinned: boolean;
+  onTogglePin: () => void;
+  customDescription: string;
+  onEditDescription: (desc: string) => void;
+}) {
   const langClass = repo.language
     ? LANG_COLORS[repo.language] ?? "bg-neutral-500/15 text-neutral-500"
     : null;
@@ -60,16 +72,39 @@ function RepoCard({ repo }: { repo: GitHubRepo }) {
         <h3 className="text-neutral-900 dark:text-white font-semibold text-sm truncate">
           {repo.name}
         </h3>
-        {repo.fork && (
-          <span className="flex items-center gap-1 text-[11px] text-neutral-400 shrink-0">
-            <GitFork size={11} />
-            fork
-          </span>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {repo.fork && (
+            <span className="flex items-center gap-1 text-[11px] text-neutral-400">
+              <GitFork size={11} />
+              fork
+            </span>
+          )}
+          <button
+            onClick={onTogglePin}
+            className={`text-[11px] flex items-center gap-1 px-2 py-0.5 rounded-lg transition-all duration-200 active:scale-95 ${
+              isPinned
+                ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                : "text-neutral-400 hover:text-amber-400 border border-transparent"
+            }`}
+          >
+            {isPinned ? "★ Pinned" : "☆ Pin"}
+          </button>
+        </div>
       </div>
-      <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-2">
-        {repo.description || "No description provided"}
-      </p>
+      <div className="group relative">
+        <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-2">
+          {customDescription || repo.description || "No description provided"}
+        </p>
+        <button
+          onClick={() => {
+            const desc = prompt("Edit description:", customDescription || repo.description || "");
+            if (desc !== null) onEditDescription(desc);
+          }}
+          className="absolute -right-1 -top-1 opacity-0 group-hover:opacity-100 text-[10px] text-neutral-400 hover:text-violet-400 transition-all"
+        >
+          edit
+        </button>
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         {repo.language && langClass && (
           <span className={`text-[11px] px-2 py-0.5 rounded-lg font-medium ${langClass}`}>
@@ -122,6 +157,8 @@ export default function PortfolioPage() {
     "jh_github_username",
     "Nardszi"
   );
+  const [pinnedRepos, setPinnedRepos] = useLocalStorage<string[]>("jh_pinnedRepos", []);
+  const [projectDescriptions, setProjectDescriptions] = useLocalStorage<Record<string, string>>("jh_projectDescriptions", {});
 
   const [repos, setRepos] = useState<GitHubRepo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,6 +196,12 @@ export default function PortfolioPage() {
 
   const filteredRepos = showForks ? repos : repos.filter((r) => !r.fork);
   const forkCount = repos.filter((r) => r.fork).length;
+
+  const sortedRepos = [...filteredRepos].sort((a, b) => {
+    const aPinned = pinnedRepos.includes(a.name) ? 0 : 1;
+    const bPinned = pinnedRepos.includes(b.name) ? 0 : 1;
+    return aPinned - bPinned;
+  });
 
   return (
     <div className="space-y-8">
@@ -333,10 +376,25 @@ export default function PortfolioPage() {
           </div>
         )}
 
-        {!error && filteredRepos.length > 0 && (
+        {!error && sortedRepos.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredRepos.map((repo) => (
-              <RepoCard key={repo.name} repo={repo} />
+            {sortedRepos.map((repo) => (
+              <RepoCard
+                key={repo.name}
+                repo={repo}
+                isPinned={pinnedRepos.includes(repo.name)}
+                onTogglePin={() => {
+                  setPinnedRepos((prev) =>
+                    prev.includes(repo.name)
+                      ? prev.filter((n) => n !== repo.name)
+                      : [...prev, repo.name]
+                  );
+                }}
+                customDescription={projectDescriptions[repo.name] || ""}
+                onEditDescription={(desc) => {
+                  setProjectDescriptions((prev) => ({ ...prev, [repo.name]: desc }));
+                }}
+              />
             ))}
           </div>
         )}

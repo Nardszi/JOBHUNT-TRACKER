@@ -2,12 +2,12 @@
 
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { defaultTasks, defaultProfile, normalizeTask, dailyResetTasks } from "@/lib/planData";
-import { Task, Application, Profile, Workout } from "@/lib/types";
+import { Task, Application, Profile, Workout, Note } from "@/lib/types";
 import Link from "next/link";
 import { useMemo, useEffect, useState } from "react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { startNotificationChecks, stopNotificationChecks } from "@/lib/notifications";
-import { TrendingUp, Briefcase, Video, Trophy, Flame, Dumbbell, ArrowRight } from "lucide-react";
+import { TrendingUp, Briefcase, Video, Trophy, Flame, Dumbbell, ArrowRight, StickyNote } from "lucide-react";
 
 function computeStreak(workouts: Workout[], restDays: string[]): number {
   const activeDates = [...new Set(workouts.filter((w) => w.completed).map((w) => w.date))];
@@ -120,6 +120,7 @@ export default function OverviewPage() {
   const [profile] = useLocalStorage<Profile>("jh_profile", defaultProfile);
   const [workouts] = useLocalStorage<Workout[]>("jh_workouts", []);
   const [restDays] = useLocalStorage<string[]>("jh_restDays", []);
+  const [notes] = useLocalStorage<Note[]>("jh_notes", []);
 
   const tasks = useMemo(() => dailyResetTasks(rawTasks.map(normalizeTask)), [rawTasks]);
 
@@ -246,6 +247,36 @@ export default function OverviewPage() {
           </div>
         </Link>
       )}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 animate-in stagger-6">
+        <div className="glass rounded-2xl p-4 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-violet-500/10 flex items-center justify-center">
+            <StickyNote size={16} className="text-violet-500" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-neutral-900 dark:text-white tabular-nums">{notes.length}</p>
+            <p className="text-xs text-neutral-500">total notes</p>
+          </div>
+        </div>
+        <div className="glass rounded-2xl p-4 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+            <TrendingUp size={16} className="text-emerald-500" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-neutral-900 dark:text-white tabular-nums">{notes.filter((n) => n.practiced).length}</p>
+            <p className="text-xs text-neutral-500">notes practiced</p>
+          </div>
+        </div>
+        <div className="glass rounded-2xl p-4 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
+            <Flame size={16} className="text-amber-500" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-neutral-900 dark:text-white tabular-nums">{workouts.filter((w) => w.completed).length}</p>
+            <p className="text-xs text-neutral-500">workouts logged</p>
+          </div>
+        </div>
+      </div>
 
       <div>
         <h2 className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 mb-3 uppercase tracking-wider">Phase progress</h2>

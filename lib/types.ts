@@ -65,6 +65,7 @@ export interface Note {
   category: string;
   createdAt: string;
   practiced?: boolean;
+  lastPracticedAt?: string;
 }
 
 export interface Profile {
@@ -94,6 +95,7 @@ export interface Workout {
   templateId?: string;
   exercises: ExerciseEntry[];
   completed: boolean;
+  durationMinutes?: number;
 }
 
 export type TemplateCategory =

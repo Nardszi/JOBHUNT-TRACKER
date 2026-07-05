@@ -89,6 +89,7 @@ export default function ExercisePage() {
   const [bestStreak, setBestStreak] = useLocalStorage<number>("jh_bestStreak", 0);
   const [bodyStats, setBodyStats] = useLocalStorage<BodyStat[]>("jh_bodyStats", []);
   const [restDays, setRestDays] = useLocalStorage<string[]>("jh_restDays", []);
+  const [weeklyGoal] = useLocalStorage<number>("jh_weeklyGoal", 5);
 
   // Force-refresh templates if old data has fewer than 100 templates
   const [refreshed, setRefreshed] = useState(false);
@@ -142,6 +143,18 @@ export default function ExercisePage() {
   }, [workouts, restDays]);
 
   const weekTotal = weekData.reduce((sum, d) => sum + d.workouts, 0);
+
+  const weekMinutes = useMemo(() => {
+    const weekDays = getWeekDays();
+    return workouts
+      .filter((w) => w.completed && weekDays.includes(w.date))
+      .reduce((sum, w) => sum + (w.durationMinutes || 0), 0);
+  }, [workouts]);
+
+  const weekRestDays = useMemo(() => {
+    const weekDays = getWeekDays();
+    return restDays.filter((d) => weekDays.includes(d)).length;
+  }, [restDays]);
 
   const bodyStatData = useMemo(() => {
     const cutoff = new Date();
@@ -211,9 +224,18 @@ export default function ExercisePage() {
 
   function saveWorkout() {
     if (!editing) return;
+    let totalMinutes = 0;
+    for (const ex of editing.exercises) {
+      if (ex.type === "cardio" || ex.type === "flexibility") {
+        totalMinutes += ex.durationMinutes || 10;
+      } else {
+        totalMinutes += Math.ceil(((ex.sets || 1) * (ex.reps || 1) * 3) / 60);
+      }
+    }
+    const workoutToSave = { ...editing, durationMinutes: totalMinutes, completed: true };
     setWorkouts((prev) => {
       const exists = prev.some((w) => w.id === editing.id);
-      return exists ? prev.map((w) => (w.id === editing.id ? editing : w)) : [...prev, { ...editing, completed: true }];
+      return exists ? prev.map((w) => (w.id === editing.id ? workoutToSave : w)) : [...prev, workoutToSave];
     });
     setEditing(null);
   }
@@ -351,6 +373,13 @@ export default function ExercisePage() {
               </div>
             </div>
           )}
+          <div className="glass rounded-2xl px-4 py-2 flex items-center gap-2 transition-all duration-200">
+            <span className="text-lg">🛌</span>
+            <div>
+              <p className="text-lg font-bold text-neutral-900 dark:text-white leading-tight">{weekRestDays}</p>
+              <p className="text-xs text-neutral-500">rest days (week)</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -390,9 +419,14 @@ export default function ExercisePage() {
             </BarChart>
           </ResponsiveContainer>
           <div className="flex items-center justify-center gap-4 mt-2">
-            <p className="text-xs text-neutral-500 mt-2 text-center">
-              {weekTotal} of 7 days this week
-            </p>
+            <div className="flex items-center justify-between mt-2 w-full">
+              <p className="text-xs text-neutral-500 text-center">
+                {weekTotal} workouts this week
+              </p>
+              <p className="text-xs text-neutral-500 text-center">
+                {weekMinutes} min / {weeklyGoal * 30} min goal
+              </p>
+            </div>
             {restDays.some((d) => getWeekDays().includes(d)) && (
               <p className="text-xs text-amber-500 mt-2 text-center flex items-center gap-1">
                 <span>🛌</span> Rest days count toward your streak

@@ -13,9 +13,9 @@ import {
   getNotificationTime,
   setNotificationTime,
 } from "@/lib/notifications";
-import { Download, Upload, Trash2, Bell, BellOff, User, Shield, GitBranch } from "lucide-react";
+import { Download, Upload, Trash2, Bell, BellOff, User, Shield, GitBranch, Dumbbell } from "lucide-react";
 
-const CURRENT_VERSION = 1;
+const CURRENT_VERSION = 2;
 
 export default function SettingsPage() {
   const [profile, setProfile] = useLocalStorage<Profile>("jh_profile", defaultProfile);
@@ -26,6 +26,7 @@ export default function SettingsPage() {
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("unsupported");
   const [notifEnabled, setNotifEnabled] = useState(false);
   const [notifTime, setNotifTimeState] = useState("09:00");
+  const [weeklyGoal, setWeeklyGoal] = useLocalStorage<number>("jh_weeklyGoal", 5);
 
   useEffect(() => {
     setNotifSupported(isNotificationsSupported());
@@ -236,6 +237,22 @@ export default function SettingsPage() {
             </p>
           </>
         )}
+      </div>
+
+      <div className="glass rounded-2xl p-5 space-y-3 animate-in stagger-3">
+        <h2 className="text-neutral-900 dark:text-white font-semibold flex items-center gap-2"><Dumbbell className="w-4 h-4" /> Exercise Goal</h2>
+        <div>
+          <label className="text-xs text-neutral-500">Weekly workout target</label>
+          <input
+            type="number"
+            min={1}
+            max={14}
+            value={weeklyGoal}
+            onChange={(e) => setWeeklyGoal(parseInt(e.target.value) || 5)}
+            className="w-full glass rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white mt-1 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+          />
+          <p className="text-[11px] text-neutral-400 mt-1">How many workouts per week you aim for. Shows progress on the Exercise page.</p>
+        </div>
       </div>
 
       <div className="glass rounded-2xl p-5 space-y-3 animate-in stagger-4">

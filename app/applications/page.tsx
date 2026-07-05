@@ -107,6 +107,9 @@ export default function ApplicationsPage() {
   const [sortKey, setSortKey] = useState<SortKey>("followUpDate");
   const [sortAsc, setSortAsc] = useState(true);
   const [pasteError, setPasteError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState<AppStatus | "">("");
+  const [viewMode, setViewMode] = useState<"table" | "timeline">("table");
 
   function save(app: Application) {
     setApps((prev) => {
@@ -170,6 +173,14 @@ export default function ApplicationsPage() {
       counts[s] = (counts[s] || 0) + 1;
     });
     return counts;
+  }, [apps]);
+
+  const conversionRate = useMemo(() => {
+    if (apps.length === 0) return 0;
+    const interviews = apps.filter(
+      (a) => a.status === "Interview Scheduled" || a.status === "Case Study" || a.status === "Offer"
+    ).length;
+    return Math.round((interviews / apps.length) * 100);
   }, [apps]);
 
   function SortIcon({ col }: { col: SortKey }) {
@@ -248,10 +259,89 @@ export default function ApplicationsPage() {
         ))}
       </div>
 
-      <div className="glass rounded-2xl overflow-x-auto animate-in stagger-4">
-        <table className="w-full text-sm">
+      <div className="flex items-center justify-between gap-4 animate-in stagger-3">
+        <div className="glass rounded-xl px-4 py-2 flex items-center gap-2">
+          <span className="text-sm font-bold text-violet-500">{conversionRate}%</span>
+          <span className="text-xs text-neutral-500">interview rate</span>
+        </div>
+        <div className="flex gap-1 glass rounded-lg p-0.5">
+          <button
+            onClick={() => setViewMode("table")}
+            className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${viewMode === "table" ? "bg-violet-500 text-white" : "text-neutral-500 hover:text-neutral-900 dark:hover:text-white"}`}
+          >
+            Table
+          </button>
+          <button
+            onClick={() => setViewMode("timeline")}
+            className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${viewMode === "timeline" ? "bg-violet-500 text-white" : "text-neutral-500 hover:text-neutral-900 dark:hover:text-white"}`}
+          >
+            Timeline
+          </button>
+        </div>
+      </div>
+
+      {viewMode === "timeline" ? (
+        <div className="space-y-3 animate-in stagger-4">
+          {[...apps].sort((a, b) => b.dateApplied.localeCompare(a.dateApplied)).map((a, i) => {
+            const statusIndex = statuses.indexOf(a.status);
+            const progress = Math.round(((statusIndex + 1) / statuses.length) * 100);
+            return (
+              <div key={a.id} className={`glass rounded-2xl p-4 hover:scale-[1.01] transition-all duration-200 animate-in stagger-${Math.min(i + 1, 12)}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-neutral-900 dark:text-white font-semibold text-sm">{a.company}</h3>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] ${statusColors[a.status]}`}>{a.status}</span>
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${sourceColors[(a.source || "Other") as ApplicationSource]}`}>{a.source || "Other"}</span>
+                    </div>
+                    <p className="text-xs text-neutral-500 mt-1">{a.role} — applied {a.dateApplied}</p>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="h-1.5 rounded-full bg-neutral-200 dark:bg-white/[0.06] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-violet-500 to-emerald-400 transition-all duration-500"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[10px] text-neutral-400">Applied</span>
+                    <span className="text-[10px] text-neutral-400">{a.status}</span>
+                  </div>
+                </div>
+                {a.followUpDate && (
+                  <p className={`text-[11px] mt-2 ${isOverdue(a) ? "text-rose-400" : "text-neutral-400"}`}>
+                    Follow-up: {a.followUpDate} {isOverdue(a) && "— overdue"}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+          {apps.length === 0 && (
+            <div className="glass rounded-2xl p-8 text-center">
+              <p className="text-neutral-500">No applications to show in timeline view.</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="glass rounded-2xl overflow-x-auto animate-in stagger-4">
+          <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-neutral-500 border-b border-white/[0.08]">
+              <th className="p-3 w-10">
+                <input
+                  type="checkbox"
+                  checked={visible.length > 0 && visible.every((a) => selectedIds.has(a.id))}
+                  onChange={() => {
+                    if (visible.every((a) => selectedIds.has(a.id))) {
+                      setSelectedIds(new Set());
+                    } else {
+                      setSelectedIds(new Set(visible.map((a) => a.id)));
+                    }
+                  }}
+                  className="rounded"
+                />
+              </th>
               <th className="p-3 cursor-pointer hover:text-neutral-900 dark:hover:text-white transition-colors duration-200" onClick={() => toggleSort("company")}>
                 Company <SortIcon col="company" />
               </th>
@@ -275,6 +365,19 @@ export default function ApplicationsPage() {
                 key={a.id}
                 className={`border-b border-white/[0.04] hover:bg-white/[0.03] transition-all duration-200 hover:scale-[1.02] animate-in stagger-${Math.min(i + 1, 12)}`}
               >
+                <td className="p-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(a.id)}
+                    onChange={() => {
+                      const next = new Set(selectedIds);
+                      if (next.has(a.id)) next.delete(a.id);
+                      else next.add(a.id);
+                      setSelectedIds(next);
+                    }}
+                    className="rounded"
+                  />
+                </td>
                 <td className="p-3 text-neutral-900 dark:text-white font-medium">{a.company}</td>
                 <td className="p-3 text-neutral-600 dark:text-neutral-300">{a.role}</td>
                 <td className="p-3 text-neutral-500 dark:text-neutral-400 tabular-nums">{a.dateApplied}</td>
@@ -312,7 +415,7 @@ export default function ApplicationsPage() {
             ))}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-neutral-500">
+                <td colSpan={8} className="p-6 text-center text-neutral-500">
                   No applications yet. Click &quot;Add Application&quot; to start tracking.
                 </td>
               </tr>
@@ -320,6 +423,43 @@ export default function ApplicationsPage() {
           </tbody>
         </table>
       </div>
+      )}
+
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 glass rounded-2xl px-5 py-3 flex items-center gap-4 shadow-2xl z-50 animate-in border border-white/[0.1]">
+          <span className="text-sm text-neutral-300">{selectedIds.size} selected</span>
+          <select
+            value={bulkStatus}
+            onChange={(e) => setBulkStatus(e.target.value as AppStatus | "")}
+            className="glass rounded-lg px-3 py-1.5 text-sm text-white"
+          >
+            <option value="">Change status...</option>
+            {statuses.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => {
+              if (!bulkStatus) return;
+              setApps((prev) =>
+                prev.map((a) => selectedIds.has(a.id) ? { ...a, status: bulkStatus } : a)
+              );
+              setSelectedIds(new Set());
+              setBulkStatus("");
+            }}
+            disabled={!bulkStatus}
+            className="bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 active:scale-95"
+          >
+            Apply
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-neutral-400 hover:text-white text-sm transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
 
       {editing && (
         <div className="fixed inset-0 bg-black/60 modal-backdrop flex items-center justify-center p-4 z-50">

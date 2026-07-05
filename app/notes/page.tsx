@@ -4,7 +4,7 @@ import { useLocalStorage } from "@/lib/useLocalStorage";
 import { Note } from "@/lib/types";
 import { seedNotes } from "@/lib/notesData";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Plus, Pencil, Trash2, StickyNote, X, Check, CheckCircle2, Circle } from "lucide-react";
+import { Plus, Pencil, Trash2, StickyNote, X, Check, CheckCircle2, Circle, Download } from "lucide-react";
 
 const CATEGORIES = [
   "All",
@@ -70,6 +70,11 @@ function ViewModal({
             <span className="text-[11px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 mt-1 inline-block">
               {note.category}
             </span>
+            {note.practiced && note.lastPracticedAt && (
+              <p className="text-[11px] text-neutral-400 dark:text-neutral-500 mt-1.5">
+                Last practiced: {Math.floor((Date.now() - new Date(note.lastPracticedAt).getTime()) / 86400000)} days ago
+              </p>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -246,7 +251,11 @@ export default function NotesPage() {
 
   function togglePracticed(id: string) {
     setNotes((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, practiced: !n.practiced } : n))
+      prev.map((n) => {
+        if (n.id !== id) return n;
+        const newPracticed = !n.practiced;
+        return { ...n, practiced: newPracticed, lastPracticedAt: newPracticed ? new Date().toISOString() : undefined };
+      })
     );
   }
 
@@ -254,6 +263,32 @@ export default function NotesPage() {
     setNotes((prev) => prev.filter((n) => n.id !== id));
     if (viewing?.id === id) setViewing(null);
     if (editing?.id === id) setEditing(null);
+  }
+
+  function exportNotesAsMarkdown() {
+    const lines: string[] = [`# Interview Prep Notes\n`];
+    lines.push(`*Exported ${new Date().toISOString().slice(0, 10)}*\n`);
+    const byCategory: Record<string, Note[]> = {};
+    notes.forEach((n) => {
+      if (!byCategory[n.category]) byCategory[n.category] = [];
+      byCategory[n.category].push(n);
+    });
+    for (const [cat, catNotes] of Object.entries(byCategory)) {
+      lines.push(`\n## ${cat}\n`);
+      catNotes.forEach((n) => {
+        lines.push(`### ${n.title}\n`);
+        if (n.practiced) lines.push(`*Practiced on ${n.lastPracticedAt ? new Date(n.lastPracticedAt).toLocaleDateString() : "unknown date"}*\n`);
+        lines.push(`${n.content}\n`);
+        lines.push(`---\n`);
+      });
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `interview-prep-notes-${new Date().toISOString().slice(0, 10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -267,12 +302,20 @@ export default function NotesPage() {
             {notes.length} notes across {Object.keys(categoryCounts).length - 1} categories
           </p>
         </div>
-        <button
-          onClick={() => setEditing(emptyNote())}
-          className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 active:scale-95 transition-all duration-200"
-        >
-          <Plus size={16} /> Add Note
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={exportNotesAsMarkdown}
+            className="glass hover:bg-white/[0.06] text-neutral-700 dark:text-neutral-300 px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 active:scale-95 transition-all duration-200"
+          >
+            <Download size={16} /> Export MD
+          </button>
+          <button
+            onClick={() => setEditing(emptyNote())}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 active:scale-95 transition-all duration-200"
+          >
+            <Plus size={16} /> Add Note
+          </button>
+        </div>
       </div>
 
       {/* Progress Bar */}
@@ -358,6 +401,18 @@ export default function NotesPage() {
               <p className="text-[11px] text-neutral-500 dark:text-neutral-400 whitespace-pre-wrap line-clamp-3 leading-relaxed">
                 {n.content}
               </p>
+              {!n.practiced && (() => {
+                const lastDate = n.lastPracticedAt || n.createdAt;
+                const daysSince = Math.floor((Date.now() - new Date(lastDate).getTime()) / 86400000);
+                if (daysSince > 7) {
+                  return (
+                    <p className="text-[10px] text-amber-500/80 mt-1 italic">
+                      Not practiced in {daysSince} days
+                    </p>
+                  );
+                }
+                return null;
+              })()}
             </div>
             <div className="flex items-center justify-between pt-1.5 mt-1.5 border-t border-neutral-100 dark:border-white/[0.06]">
               <div className="flex gap-2">
