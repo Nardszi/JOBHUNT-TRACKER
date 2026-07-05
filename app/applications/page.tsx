@@ -2,7 +2,7 @@
 
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { Application, AppStatus, ApplicationSource } from "@/lib/types";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   Plus,
   ClipboardPaste,
@@ -11,6 +11,9 @@ import {
   ChevronUp,
   ChevronDown,
   Filter,
+  Upload,
+  X,
+  FileText,
 } from "lucide-react";
 
 const statuses: AppStatus[] = [
@@ -99,6 +102,108 @@ function parseClipboardJob(text: string): { company: string; role: string } {
   return { company: company.slice(0, 100), role: role.slice(0, 100) };
 }
 
+interface ParsedEntry {
+  company: string;
+  role: string;
+  dateApplied: string;
+  status: AppStatus;
+  source: ApplicationSource;
+}
+
+function parseBulkImport(text: string): ParsedEntry[] {
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return [];
+  const entries: ParsedEntry[] = [];
+  const today = new Date().toISOString().slice(0, 10);
+
+  const firstLine = lines[0].toLowerCase();
+  const isCSV = lines[0].includes(",") && !lines[0].includes("\t");
+  const isTSV = lines[0].includes("\t");
+  const hasHeader = firstLine.includes("company") || firstLine.includes("role") || firstLine.includes("position") || firstLine.includes("applied");
+
+  if (isCSV || isTSV) {
+    const sep = isCSV ? "," : "\t";
+    const dataLines = hasHeader ? lines.slice(1) : lines;
+    for (const line of dataLines) {
+      const cols = line.split(sep).map((c) => c.replace(/^["']|["']$/g, "").trim());
+      if (cols.length < 2) continue;
+      const company = cols[0] || "";
+      const role = cols[1] || "";
+      const dateRaw = cols[2] || "";
+      const statusRaw = cols[3] || "";
+      const sourceRaw = cols[4] || "";
+      if (!company || !role) continue;
+      const dateApplied = parseDateStr(dateRaw) || today;
+      const status = parseStatusStr(statusRaw);
+      const source = parseSourceStr(sourceRaw);
+      entries.push({ company: company.slice(0, 100), role: role.slice(0, 100), dateApplied, status, source });
+    }
+  } else {
+    for (const line of lines) {
+      const lower = line.toLowerCase();
+      if (lower.startsWith("company") || lower.startsWith("position") || lower.startsWith("role") || lower.startsWith("applied") || lower.startsWith("date") || lower.startsWith("#")) {
+        continue;
+      }
+      const companyMatch = line.match(/^(.+?)[\s\-–—:|]+(.+?)(?:[\s\-–—:|]+(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{4}))?$/);
+      if (companyMatch) {
+        const company = companyMatch[1].trim();
+        const role = companyMatch[2].trim();
+        const dateApplied = companyMatch[3] ? parseDateStr(companyMatch[3]) || today : today;
+        entries.push({ company: company.slice(0, 100), role: role.slice(0, 100), dateApplied, status: "Applied", source: "Other" });
+        continue;
+      }
+      const parts = line.split(/[\t|]/).map((p) => p.trim()).filter(Boolean);
+      if (parts.length >= 2) {
+        const company = parts[0];
+        const role = parts[1];
+        const dateApplied = parts[2] ? parseDateStr(parts[2]) || today : today;
+        entries.push({ company: company.slice(0, 100), role: role.slice(0, 100), dateApplied, status: "Applied", source: "Other" });
+      }
+    }
+  }
+
+  return entries;
+}
+
+function parseDateStr(raw: string): string | null {
+  if (!raw) return null;
+  const cleaned = raw.replace(/["']/g, "").trim();
+  const isoMatch = cleaned.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (isoMatch) {
+    const [, y, m, d] = isoMatch;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  const usMatch = cleaned.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (usMatch) {
+    const [, m, d, y] = usMatch;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  const d = new Date(cleaned);
+  if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  return null;
+}
+
+function parseStatusStr(raw: string): AppStatus {
+  const lower = raw.toLowerCase().trim();
+  if (lower.includes("interview")) return "Interview Scheduled";
+  if (lower.includes("case")) return "Case Study";
+  if (lower.includes("offer")) return "Offer";
+  if (lower.includes("reject")) return "Rejected";
+  if (lower.includes("ghost")) return "Ghosted";
+  return "Applied";
+}
+
+function parseSourceStr(raw: string): ApplicationSource {
+  const lower = raw.toLowerCase().trim();
+  if (lower.includes("linkedin")) return "LinkedIn";
+  if (lower.includes("jobstreet")) return "JobStreet";
+  if (lower.includes("indeed")) return "Indeed";
+  if (lower.includes("referral")) return "Referral";
+  if (lower.includes("facebook")) return "Facebook Group";
+  if (lower.includes("company")) return "Company Site";
+  return "Other";
+}
+
 export default function ApplicationsPage() {
   const [apps, setApps] = useLocalStorage<Application[]>("jh_applications", []);
   const [filter, setFilter] = useState<AppStatus | "All">("All");
@@ -110,6 +215,43 @@ export default function ApplicationsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<AppStatus | "">("");
   const [viewMode, setViewMode] = useState<"table" | "timeline">("table");
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [bulkText, setBulkText] = useState("");
+  const [parsedEntries, setParsedEntries] = useState<ParsedEntry[]>([]);
+  const bulkModalRef = useRef<HTMLDivElement>(null);
+  const bulkBackdropRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showBulkImport) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setShowBulkImport(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [showBulkImport]);
+
+  function handleBulkParse() {
+    const entries = parseBulkImport(bulkText);
+    setParsedEntries(entries);
+  }
+
+  function handleBulkImport() {
+    const newApps: Application[] = parsedEntries.map((e) => ({
+      id: crypto.randomUUID(),
+      company: e.company,
+      role: e.role,
+      dateApplied: e.dateApplied,
+      status: e.status,
+      followUpDate: "",
+      notes: "",
+      jobUrl: "",
+      source: e.source,
+    }));
+    setApps((prev) => [...prev, ...newApps]);
+    setParsedEntries([]);
+    setBulkText("");
+    setShowBulkImport(false);
+  }
 
   function save(app: Application) {
     setApps((prev) => {
@@ -203,6 +345,13 @@ export default function ApplicationsPage() {
           >
             <ClipboardPaste className="h-4 w-4" />
             Paste Job Post
+          </button>
+          <button
+            onClick={() => { setShowBulkImport(true); setBulkText(""); setParsedEntries([]); }}
+            className="glass hover:bg-white/[0.06] text-neutral-700 dark:text-neutral-300 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 active:scale-95 flex items-center gap-2"
+          >
+            <Upload className="h-4 w-4" />
+            Bulk Import
           </button>
           <button
             onClick={() => setEditing(emptyApp())}
@@ -552,6 +701,96 @@ export default function ApplicationsPage() {
               >
                 Save
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBulkImport && (
+        <div
+          ref={bulkBackdropRef}
+          className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 animate-in"
+          onMouseDown={(e) => {
+            if (e.target === bulkBackdropRef.current) setShowBulkImport(false);
+          }}
+        >
+          <div ref={bulkModalRef} className="bg-white dark:bg-neutral-900 rounded-2xl p-6 w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl border border-neutral-200 dark:border-white/[0.08] animate-in stagger-1">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-neutral-900 dark:text-white font-semibold text-lg flex items-center gap-2">
+                <FileText size={18} className="text-violet-400" />
+                Bulk Import Applications
+              </h2>
+              <button
+                onClick={() => setShowBulkImport(false)}
+                className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white p-1 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-4">
+              <div>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">
+                  Paste your applications below. Supported formats:
+                </p>
+                <ul className="text-[11px] text-neutral-400 space-y-1 mb-3">
+                  <li><strong>CSV:</strong> Company, Role, Date, Status, Source (with or without header)</li>
+                  <li><strong>Tab-separated:</strong> Company&lt;tab&gt;Role&lt;tab&gt;Date</li>
+                  <li><strong>One per line:</strong> Company - Role - Date</li>
+                  <li><strong>LinkedIn:</strong> Copy from &quot;My Jobs&quot; or job listing pages</li>
+                </ul>
+                <textarea
+                  value={bulkText}
+                  onChange={(e) => { setBulkText(e.target.value); setParsedEntries([]); }}
+                  placeholder={`Company, Role, Date, Status, Source\nAcme Corp, Frontend Dev, 2026-01-15, Applied, LinkedIn\nTechCo, React Engineer, 2026-01-10, Interview Scheduled, JobStreet\n\n--- or one per line ---\nAcme Corp - Frontend Dev - 2026-01-15\nTechCo - React Engineer - 2026-01-10`}
+                  rows={10}
+                  className="w-full rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white bg-neutral-100 dark:bg-white/[0.06] border border-neutral-200 dark:border-white/[0.08] transition-all duration-200 font-mono focus:outline-none focus:ring-2 focus:ring-violet-500/50 resize-none"
+                />
+              </div>
+
+              {parsedEntries.length > 0 && (
+                <div>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">
+                    Preview — {parsedEntries.length} application{parsedEntries.length !== 1 ? "s" : ""} found:
+                  </p>
+                  <div className="max-h-60 overflow-y-auto rounded-xl border border-neutral-200 dark:border-white/[0.08] divide-y divide-neutral-100 dark:divide-white/[0.04]">
+                    {parsedEntries.map((e, i) => (
+                      <div key={i} className="px-3 py-2 flex items-center gap-3 text-sm">
+                        <span className="text-neutral-900 dark:text-white font-medium min-w-0 truncate flex-1">{e.company}</span>
+                        <span className="text-neutral-500 dark:text-neutral-400 min-w-0 truncate flex-1">{e.role}</span>
+                        <span className="text-neutral-400 tabular-nums text-xs shrink-0">{e.dateApplied}</span>
+                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] shrink-0 ${statusColors[e.status]}`}>{e.status}</span>
+                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] shrink-0 ${sourceColors[e.source]}`}>{e.source}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-neutral-200 dark:border-white/[0.08]">
+              <button
+                onClick={() => setShowBulkImport(false)}
+                className="px-4 py-2 rounded-xl text-sm text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-all duration-200 active:scale-95"
+              >
+                Cancel
+              </button>
+              {parsedEntries.length === 0 ? (
+                <button
+                  onClick={handleBulkParse}
+                  disabled={!bulkText.trim()}
+                  className="bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 active:scale-95"
+                >
+                  Parse
+                </button>
+              ) : (
+                <button
+                  onClick={handleBulkImport}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 active:scale-95"
+                >
+                  Import {parsedEntries.length} Application{parsedEntries.length !== 1 ? "s" : ""}
+                </button>
+              )}
             </div>
           </div>
         </div>
