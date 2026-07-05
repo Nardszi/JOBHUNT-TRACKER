@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocalStorage } from "@/lib/useLocalStorage";
-import { Application, AppStatus } from "@/lib/types";
+import { Application, AppStatus, ApplicationSource } from "@/lib/types";
 import { useState, useMemo } from "react";
 import {
   Plus,
@@ -31,6 +31,26 @@ const statusColors: Record<AppStatus, string> = {
   Ghosted: "bg-yellow-500/10 text-yellow-400",
 };
 
+const sources: ApplicationSource[] = [
+  "LinkedIn",
+  "JobStreet",
+  "Referral",
+  "Company Site",
+  "Indeed",
+  "Facebook Group",
+  "Other",
+];
+
+const sourceColors: Record<ApplicationSource, string> = {
+  LinkedIn: "bg-blue-500/10 text-blue-500",
+  JobStreet: "bg-emerald-500/10 text-emerald-500",
+  Referral: "bg-amber-500/10 text-amber-500",
+  "Company Site": "bg-violet-500/10 text-violet-500",
+  Indeed: "bg-sky-500/10 text-sky-500",
+  "Facebook Group": "bg-indigo-500/10 text-indigo-500",
+  Other: "bg-neutral-500/10 text-neutral-500",
+};
+
 type SortKey = "company" | "dateApplied" | "followUpDate" | "status";
 
 function emptyApp(): Application {
@@ -43,6 +63,7 @@ function emptyApp(): Application {
     followUpDate: "",
     notes: "",
     jobUrl: "",
+    source: "LinkedIn",
   };
 }
 
@@ -81,6 +102,7 @@ function parseClipboardJob(text: string): { company: string; role: string } {
 export default function ApplicationsPage() {
   const [apps, setApps] = useLocalStorage<Application[]>("jh_applications", []);
   const [filter, setFilter] = useState<AppStatus | "All">("All");
+  const [sourceFilter, setSourceFilter] = useState<ApplicationSource | "All">("All");
   const [editing, setEditing] = useState<Application | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("followUpDate");
   const [sortAsc, setSortAsc] = useState(true);
@@ -122,7 +144,10 @@ export default function ApplicationsPage() {
   }
 
   const visible = useMemo(() => {
-    const filtered = filter === "All" ? apps : apps.filter((a) => a.status === filter);
+    let filtered = filter === "All" ? apps : apps.filter((a) => a.status === filter);
+    if (sourceFilter !== "All") {
+      filtered = filtered.filter((a) => (a.source || "Other") === sourceFilter);
+    }
     return [...filtered].sort((a, b) => {
       if (sortKey === "followUpDate") {
         const aOverdue = isOverdue(a) ? 0 : 1;
@@ -136,7 +161,16 @@ export default function ApplicationsPage() {
       const bVal = b[sortKey] || "";
       return sortAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
     });
-  }, [apps, filter, sortKey, sortAsc]);
+  }, [apps, filter, sourceFilter, sortKey, sortAsc]);
+
+  const sourceCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    apps.forEach((a) => {
+      const s = a.source || "Other";
+      counts[s] = (counts[s] || 0) + 1;
+    });
+    return counts;
+  }, [apps]);
 
   function SortIcon({ col }: { col: SortKey }) {
     if (sortKey !== col) return <Filter className="inline ml-1 h-3 w-3 text-neutral-300 dark:text-neutral-600" />;
@@ -175,6 +209,7 @@ export default function ApplicationsPage() {
         </div>
       )}
 
+      {/* Status Filters */}
       <div className="flex flex-wrap gap-2 animate-in stagger-2">
         <button
           onClick={() => setFilter("All")}
@@ -193,7 +228,27 @@ export default function ApplicationsPage() {
         ))}
       </div>
 
-      <div className="glass rounded-2xl overflow-x-auto animate-in stagger-3">
+      {/* Source Filters */}
+      <div className="flex flex-wrap gap-2 animate-in stagger-3">
+        <span className="text-[11px] text-neutral-400 self-center mr-1">Source:</span>
+        <button
+          onClick={() => setSourceFilter("All")}
+          className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-200 ${sourceFilter === "All" ? "bg-violet-500 text-white" : "bg-neutral-100 dark:bg-white/[0.06] text-neutral-500 dark:text-neutral-400 border border-neutral-200 dark:border-white/[0.08]"}`}
+        >
+          All
+        </button>
+        {sources.map((s) => (
+          <button
+            key={s}
+            onClick={() => setSourceFilter(s)}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-200 ${sourceFilter === s ? "bg-violet-500 text-white" : "bg-neutral-100 dark:bg-white/[0.06] text-neutral-500 dark:text-neutral-400 border border-neutral-200 dark:border-white/[0.08]"}`}
+          >
+            {s} ({sourceCounts[s] || 0})
+          </button>
+        ))}
+      </div>
+
+      <div className="glass rounded-2xl overflow-x-auto animate-in stagger-4">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-neutral-500 border-b border-white/[0.08]">
@@ -207,6 +262,7 @@ export default function ApplicationsPage() {
               <th className="p-3 cursor-pointer hover:text-neutral-900 dark:hover:text-white transition-colors duration-200" onClick={() => toggleSort("status")}>
                 Status <SortIcon col="status" />
               </th>
+              <th className="p-3">Source</th>
               <th className="p-3 cursor-pointer hover:text-neutral-900 dark:hover:text-white transition-colors duration-200" onClick={() => toggleSort("followUpDate")}>
                 Follow-up <SortIcon col="followUpDate" />
               </th>
@@ -225,6 +281,11 @@ export default function ApplicationsPage() {
                 <td className="p-3">
                   <span className={`px-2 py-1 rounded-full text-xs ${statusColors[a.status]}`}>
                     {a.status}
+                  </span>
+                </td>
+                <td className="p-3">
+                  <span className={`px-2 py-1 rounded-full text-[11px] font-medium ${sourceColors[(a.source || "Other") as ApplicationSource]}`}>
+                    {a.source || "Other"}
                   </span>
                 </td>
                 <td className="p-3">
@@ -251,7 +312,7 @@ export default function ApplicationsPage() {
             ))}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-neutral-500">
+                <td colSpan={7} className="p-6 text-center text-neutral-500">
                   No applications yet. Click &quot;Add Application&quot; to start tracking.
                 </td>
               </tr>
@@ -298,17 +359,32 @@ export default function ApplicationsPage() {
                 />
               </div>
             </div>
-            <select
-              value={editing.status}
-              onChange={(e) => setEditing({ ...editing, status: e.target.value as AppStatus })}
-              className="w-full glass rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white transition-all duration-200"
-            >
-              {statuses.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-neutral-500">Status</label>
+                <select
+                  value={editing.status}
+                  onChange={(e) => setEditing({ ...editing, status: e.target.value as AppStatus })}
+                  className="w-full glass rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white transition-all duration-200 mt-1"
+                >
+                  {statuses.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-neutral-500">Source</label>
+                <select
+                  value={editing.source || "Other"}
+                  onChange={(e) => setEditing({ ...editing, source: e.target.value as ApplicationSource })}
+                  className="w-full glass rounded-xl px-3 py-2 text-sm text-neutral-900 dark:text-white transition-all duration-200 mt-1"
+                >
+                  {sources.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <input
               placeholder="Job posting URL"
               value={editing.jobUrl}

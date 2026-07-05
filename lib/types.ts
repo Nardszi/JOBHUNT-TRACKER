@@ -27,6 +27,15 @@ export type AppStatus =
   | "Rejected"
   | "Ghosted";
 
+export type ApplicationSource =
+  | "LinkedIn"
+  | "JobStreet"
+  | "Referral"
+  | "Company Site"
+  | "Indeed"
+  | "Facebook Group"
+  | "Other";
+
 export interface Application {
   id: string;
   company: string;
@@ -36,6 +45,7 @@ export interface Application {
   followUpDate: string;
   notes: string;
   jobUrl: string;
+  source?: ApplicationSource;
 }
 
 export interface Project {
@@ -54,6 +64,7 @@ export interface Note {
   content: string;
   category: string;
   createdAt: string;
+  practiced?: boolean;
 }
 
 export interface Profile {

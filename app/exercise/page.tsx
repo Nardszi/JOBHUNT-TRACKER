@@ -48,9 +48,10 @@ function emptyExercise(): ExerciseEntry {
   return { id: crypto.randomUUID(), name: "", type: "strength" };
 }
 
-function computeStreak(workouts: Workout[]): number {
-  const dates = [...new Set(workouts.filter((w) => w.completed).map((w) => w.date))].sort().reverse();
-  if (dates.length === 0) return 0;
+function computeStreak(workouts: Workout[], restDays: string[]): number {
+  const activeDates = [...new Set(workouts.filter((w) => w.completed).map((w) => w.date))];
+  const allValidDates = [...new Set([...activeDates, ...restDays])].sort().reverse();
+  if (allValidDates.length === 0) return 0;
   let streak = 0;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -58,7 +59,7 @@ function computeStreak(workouts: Workout[]): number {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
     const key = d.toISOString().slice(0, 10);
-    if (dates.includes(key)) {
+    if (allValidDates.includes(key)) {
       streak++;
     } else if (i > 0) {
       break;
@@ -87,6 +88,7 @@ export default function ExercisePage() {
   const [rawTemplates, setRawTemplates, templatesLoaded] = useLocalStorage<WorkoutTemplate[]>("jh_templates", defaultTemplates);
   const [bestStreak, setBestStreak] = useLocalStorage<number>("jh_bestStreak", 0);
   const [bodyStats, setBodyStats] = useLocalStorage<BodyStat[]>("jh_bodyStats", []);
+  const [restDays, setRestDays] = useLocalStorage<string[]>("jh_restDays", []);
 
   // Force-refresh templates if old data has fewer than 100 templates
   const [refreshed, setRefreshed] = useState(false);
@@ -109,12 +111,21 @@ export default function ExercisePage() {
   const [templateSearch, setTemplateSearch] = useState("");
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
 
-  const streak = useMemo(() => computeStreak(workouts), [workouts]);
+  const streak = useMemo(() => computeStreak(workouts, restDays), [workouts, restDays]);
   const currentBest = useMemo(() => Math.max(bestStreak, streak), [bestStreak, streak]);
 
   useMemo(() => {
     if (streak > bestStreak) setBestStreak(streak);
   }, [streak, bestStreak, setBestStreak]);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isTodayRestDay = restDays.includes(todayStr);
+
+  function toggleRestDay() {
+    setRestDays((prev) =>
+      prev.includes(todayStr) ? prev.filter((d) => d !== todayStr) : [...prev, todayStr]
+    );
+  }
 
   const weekData = useMemo(() => {
     const weekDays = getWeekDays();
@@ -126,8 +137,9 @@ export default function ExercisePage() {
     return weekDays.map((d, i) => ({
       day: dayLabels[i],
       workouts: counts[d],
+      restDay: restDays.includes(d),
     }));
-  }, [workouts]);
+  }, [workouts, restDays]);
 
   const weekTotal = weekData.reduce((sum, d) => sum + d.workouts, 0);
 
@@ -282,6 +294,16 @@ export default function ExercisePage() {
     return Object.entries(groups);
   }, [workouts]);
 
+  const historyWithRestDays = useMemo(() => {
+    const allDates = new Set([...groupedHistory.map(([d]) => d), ...restDays]);
+    const result: { date: string; workouts: Workout[]; isRestDay: boolean }[] = [];
+    allDates.forEach((date) => {
+      const dayWorkouts = groupedHistory.find(([d]) => d === date)?.[1] || [];
+      result.push({ date, workouts: dayWorkouts, isRestDay: restDays.includes(date) && dayWorkouts.length === 0 });
+    });
+    return result.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30);
+  }, [groupedHistory, restDays]);
+
   const tabs = [
     { key: "log" as const, label: "Log Workout", icon: Play },
     { key: "history" as const, label: "History", icon: null },
@@ -298,6 +320,21 @@ export default function ExercisePage() {
           </p>
         </div>
         <div className="flex gap-3 items-center">
+          <button
+            onClick={toggleRestDay}
+            className={`glass rounded-2xl px-4 py-2 flex items-center gap-2 transition-all duration-200 active:scale-95 ${
+              isTodayRestDay
+                ? "bg-amber-500/10 border border-amber-500/20 text-amber-500"
+                : "hover:bg-white/[0.06] text-neutral-500 dark:text-neutral-400"
+            }`}
+            title={isTodayRestDay ? "Rest day active" : "Mark today as rest day"}
+          >
+            <span className="text-lg">{isTodayRestDay ? "🛌" : "🧘"}</span>
+            <div className="text-left">
+              <p className="text-xs font-medium leading-tight">{isTodayRestDay ? "Rest day" : "Rest day?"}</p>
+              <p className="text-[10px] opacity-60">{isTodayRestDay ? "tap to undo" : "tap to mark"}</p>
+            </div>
+          </button>
           <div className="glass glow-emerald rounded-2xl px-4 py-2 flex items-center gap-2 transition-all duration-200">
             <Flame className="w-5 h-5 text-emerald-500" />
             <div>
@@ -327,6 +364,10 @@ export default function ExercisePage() {
                   <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.9} />
                   <stop offset="100%" stopColor="#7c3aed" stopOpacity={0.6} />
                 </linearGradient>
+                <linearGradient id="amberGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.7} />
+                  <stop offset="100%" stopColor="#d97706" stopOpacity={0.4} />
+                </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
               <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#737373' }} />
@@ -340,13 +381,24 @@ export default function ExercisePage() {
                   color: '#fff',
                   boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
                 }}
+                formatter={(value, name, props) => {
+                  if (props?.payload?.restDay) return ["Rest day", "Status"];
+                  return [String(value), "Workouts"];
+                }}
               />
               <Bar dataKey="workouts" fill="url(#violetGradient)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-          <p className="text-xs text-neutral-500 mt-2 text-center">
-            {weekTotal} of 7 days this week
-          </p>
+          <div className="flex items-center justify-center gap-4 mt-2">
+            <p className="text-xs text-neutral-500 mt-2 text-center">
+              {weekTotal} of 7 days this week
+            </p>
+            {restDays.some((d) => getWeekDays().includes(d)) && (
+              <p className="text-xs text-amber-500 mt-2 text-center flex items-center gap-1">
+                <span>🛌</span> Rest days count toward your streak
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="glass rounded-2xl p-5 animate-in stagger-2 transition-all duration-200 hover:scale-[1.02]">
@@ -547,7 +599,7 @@ export default function ExercisePage() {
 
       {tab === "history" && (
         <div className="space-y-4">
-          {groupedHistory.length === 0 ? (
+          {historyWithRestDays.length === 0 ? (
             <div className="glass rounded-2xl p-8 text-center animate-in">
               <Dumbbell className="w-10 h-10 text-neutral-400 mx-auto mb-3" />
               <p className="text-neutral-500 dark:text-neutral-400">
@@ -555,37 +607,48 @@ export default function ExercisePage() {
               </p>
             </div>
           ) : (
-            groupedHistory.map(([date, dayWorkouts]) => (
-              <div key={date} className="space-y-2">
-                <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 px-1">
-                  {new Date(date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
+            historyWithRestDays.map((entry) => (
+              <div key={entry.date} className="space-y-2">
+                <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 px-1 flex items-center gap-2">
+                  {new Date(entry.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
+                  {entry.isRestDay && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                      🛌 Rest day
+                    </span>
+                  )}
                 </p>
                 <div className="space-y-2">
-                  {dayWorkouts.map((w) => (
-                    <div key={w.id} className="glass rounded-2xl p-4 hover:scale-[1.02] transition-all duration-200">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          {w.exercises.map((ex) => (
-                            <div key={ex.id} className="flex items-center gap-2 text-sm">
-                              <span className="text-neutral-900 dark:text-white font-medium">{ex.name}</span>
-                              <span className="text-neutral-400 text-xs">
-                                {ex.sets && ex.reps ? `${ex.sets}×${ex.reps}` : ""}
-                                {ex.weightKg ? ` @ ${ex.weightKg}kg` : ""}
-                                {ex.durationMinutes ? `${ex.durationMinutes} min` : ""}
-                              </span>
-                            </div>
-                          ))}
+                  {entry.workouts.length > 0 ? (
+                    entry.workouts.map((w) => (
+                      <div key={w.id} className="glass rounded-2xl p-4 hover:scale-[1.02] transition-all duration-200">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1">
+                            {w.exercises.map((ex) => (
+                              <div key={ex.id} className="flex items-center gap-2 text-sm">
+                                <span className="text-neutral-900 dark:text-white font-medium">{ex.name}</span>
+                                <span className="text-neutral-400 text-xs">
+                                  {ex.sets && ex.reps ? `${ex.sets}×${ex.reps}` : ""}
+                                  {ex.weightKg ? ` @ ${ex.weightKg}kg` : ""}
+                                  {ex.durationMinutes ? `${ex.durationMinutes} min` : ""}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <button
+                            onClick={() => deleteWorkout(w.id)}
+                            className="text-red-500 hover:text-red-400 text-xs flex items-center gap-1 transition-all duration-200 active:scale-95"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete
+                          </button>
                         </div>
-                        <button
-                          onClick={() => deleteWorkout(w.id)}
-                          className="text-red-500 hover:text-red-400 text-xs flex items-center gap-1 transition-all duration-200 active:scale-95"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          Delete
-                        </button>
                       </div>
+                    ))
+                  ) : (
+                    <div className="glass rounded-2xl p-3 text-center">
+                      <p className="text-xs text-amber-500/80">🛌 Rest day — recovery is part of the process</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             ))

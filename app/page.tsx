@@ -9,6 +9,26 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContai
 import { startNotificationChecks, stopNotificationChecks } from "@/lib/notifications";
 import { TrendingUp, Briefcase, Video, Trophy, Flame, Dumbbell, ArrowRight } from "lucide-react";
 
+function computeStreak(workouts: Workout[], restDays: string[]): number {
+  const activeDates = [...new Set(workouts.filter((w) => w.completed).map((w) => w.date))];
+  const allValidDates = [...new Set([...activeDates, ...restDays])].sort().reverse();
+  if (allValidDates.length === 0) return 0;
+  let count = 0;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    if (allValidDates.includes(key)) {
+      count++;
+    } else if (i > 0) {
+      break;
+    }
+  }
+  return count;
+}
+
 function ProgressRing({ percent }: { percent: number }) {
   const radius = 54;
   const circumference = 2 * Math.PI * radius;
@@ -99,6 +119,7 @@ export default function OverviewPage() {
   const [applications] = useLocalStorage<Application[]>("jh_applications", []);
   const [profile] = useLocalStorage<Profile>("jh_profile", defaultProfile);
   const [workouts] = useLocalStorage<Workout[]>("jh_workouts", []);
+  const [restDays] = useLocalStorage<string[]>("jh_restDays", []);
 
   const tasks = useMemo(() => dailyResetTasks(rawTasks.map(normalizeTask)), [rawTasks]);
 
@@ -133,24 +154,7 @@ export default function OverviewPage() {
     return count;
   }, [applications]);
 
-  const exerciseStreak = useMemo(() => {
-    const dates = [...new Set(workouts.filter((w) => w.completed).map((w) => w.date))].sort().reverse();
-    if (dates.length === 0) return 0;
-    let count = 0;
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 365; i++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
-      if (dates.includes(key)) {
-        count++;
-      } else if (i > 0) {
-        break;
-      }
-    }
-    return count;
-  }, [workouts]);
+  const exerciseStreak = useMemo(() => computeStreak(workouts, restDays), [workouts, restDays]);
 
   const daysSinceLastApp = useMemo(() => {
     if (applications.length === 0) return null;

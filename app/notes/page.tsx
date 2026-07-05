@@ -4,7 +4,7 @@ import { useLocalStorage } from "@/lib/useLocalStorage";
 import { Note } from "@/lib/types";
 import { seedNotes } from "@/lib/notesData";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Plus, Pencil, Trash2, StickyNote, X } from "lucide-react";
+import { Plus, Pencil, Trash2, StickyNote, X, Check, CheckCircle2, Circle } from "lucide-react";
 
 const CATEGORIES = [
   "All",
@@ -17,6 +17,7 @@ const CATEGORIES = [
 ] as const;
 
 type CategoryFilter = (typeof CATEGORIES)[number];
+type PracticedFilter = "All" | "Practiced" | "Not Practiced";
 
 function emptyNote(): Note {
   return {
@@ -25,6 +26,7 @@ function emptyNote(): Note {
     content: "",
     category: "Behavioral",
     createdAt: new Date().toISOString().slice(0, 10),
+    practiced: false,
   };
 }
 
@@ -33,11 +35,13 @@ function ViewModal({
   onClose,
   onEdit,
   onDelete,
+  onTogglePracticed,
 }: {
   note: Note;
   onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onTogglePracticed: () => void;
 }) {
   const backdropRef = useRef<HTMLDivElement>(null);
 
@@ -79,7 +83,19 @@ function ViewModal({
             {note.content}
           </p>
         </div>
-        <div className="flex gap-3 pt-4 mt-4 border-t border-neutral-200 dark:border-white/[0.08]">
+        <div className="flex items-center gap-3 pt-4 mt-4 border-t border-neutral-200 dark:border-white/[0.08]">
+          <button
+            onClick={onTogglePracticed}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 active:scale-95 ${
+              note.practiced
+                ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                : "bg-neutral-100 dark:bg-white/[0.06] text-neutral-500 dark:text-neutral-400 border border-neutral-200 dark:border-white/[0.08]"
+            }`}
+          >
+            {note.practiced ? <CheckCircle2 size={14} /> : <Circle size={14} />}
+            {note.practiced ? "Practiced" : "Mark as Practiced"}
+          </button>
+          <div className="flex-1" />
           <button
             onClick={onEdit}
             className="text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-white flex items-center gap-1 active:scale-95 transition-all duration-200"
@@ -183,12 +199,18 @@ export default function NotesPage() {
   const [viewing, setViewing] = useState<Note | null>(null);
   const [editing, setEditing] = useState<Note | null>(null);
   const [filter, setFilter] = useState<CategoryFilter>("All");
+  const [practicedFilter, setPracticedFilter] = useState<PracticedFilter>("All");
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
     let result = notes;
     if (filter !== "All") {
       result = result.filter((n) => n.category === filter);
+    }
+    if (practicedFilter === "Practiced") {
+      result = result.filter((n) => n.practiced);
+    } else if (practicedFilter === "Not Practiced") {
+      result = result.filter((n) => !n.practiced);
     }
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -200,7 +222,7 @@ export default function NotesPage() {
       );
     }
     return result;
-  }, [notes, filter, search]);
+  }, [notes, filter, practicedFilter, search]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { All: notes.length };
@@ -210,12 +232,22 @@ export default function NotesPage() {
     return counts;
   }, [notes]);
 
+  const practicedCount = useMemo(() => notes.filter((n) => n.practiced).length, [notes]);
+  const totalCount = notes.length;
+  const progressPct = totalCount > 0 ? Math.round((practicedCount / totalCount) * 100) : 0;
+
   function save(n: Note) {
     setNotes((prev) => {
       const exists = prev.some((x) => x.id === n.id);
       return exists ? prev.map((x) => (x.id === n.id ? n : x)) : [...prev, n];
     });
     setEditing(null);
+  }
+
+  function togglePracticed(id: string) {
+    setNotes((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, practiced: !n.practiced } : n))
+    );
   }
 
   function remove(id: string) {
@@ -241,6 +273,22 @@ export default function NotesPage() {
         >
           <Plus size={16} /> Add Note
         </button>
+      </div>
+
+      {/* Progress Bar */}
+      <div className="glass rounded-xl p-3 animate-in stagger-1">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">Practice Progress</span>
+          <span className="text-xs text-neutral-700 dark:text-neutral-200 font-bold tabular-nums">
+            {practicedCount} / {totalCount} ({progressPct}%)
+          </span>
+        </div>
+        <div className="h-2 rounded-full bg-neutral-200 dark:bg-white/[0.06] overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
       </div>
 
       {/* Search + Filters Row */}
@@ -269,6 +317,25 @@ export default function NotesPage() {
         </div>
       </div>
 
+      {/* Practiced Filter */}
+      <div className="flex gap-2 animate-in stagger-2">
+        {(["All", "Practiced", "Not Practiced"] as PracticedFilter[]).map((pf) => (
+          <button
+            key={pf}
+            onClick={() => setPracticedFilter(pf)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all duration-200 active:scale-95 ${
+              practicedFilter === pf
+                ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                : "bg-neutral-100 dark:bg-white/[0.06] text-neutral-500 dark:text-neutral-400 border border-neutral-200 dark:border-white/[0.08]"
+            }`}
+          >
+            {pf === "Practiced" && <CheckCircle2 size={12} />}
+            {pf === "Not Practiced" && <Circle size={12} />}
+            {pf}
+          </button>
+        ))}
+      </div>
+
       {/* Notes Grid — compact 3/4 columns */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5">
         {filtered.map((n, i) => (
@@ -292,18 +359,31 @@ export default function NotesPage() {
                 {n.content}
               </p>
             </div>
-            <div className="flex gap-2 pt-1.5 mt-1.5 border-t border-neutral-100 dark:border-white/[0.06]">
+            <div className="flex items-center justify-between pt-1.5 mt-1.5 border-t border-neutral-100 dark:border-white/[0.06]">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setEditing(n)}
+                  className="text-[11px] text-neutral-400 hover:text-neutral-900 dark:hover:text-white flex items-center gap-0.5 active:scale-95 transition-all duration-200"
+                >
+                  <Pencil size={10} /> Edit
+                </button>
+                <button
+                  onClick={() => remove(n.id)}
+                  className="text-[11px] text-red-400 hover:text-red-500 flex items-center gap-0.5 active:scale-95 transition-all duration-200"
+                >
+                  <Trash2 size={10} /> Del
+                </button>
+              </div>
               <button
-                onClick={() => setEditing(n)}
-                className="text-[11px] text-neutral-400 hover:text-neutral-900 dark:hover:text-white flex items-center gap-0.5 active:scale-95 transition-all duration-200"
+                onClick={() => togglePracticed(n.id)}
+                className={`text-[11px] flex items-center gap-0.5 active:scale-95 transition-all duration-200 ${
+                  n.practiced
+                    ? "text-emerald-500"
+                    : "text-neutral-300 dark:text-neutral-600 hover:text-emerald-400"
+                }`}
+                title={n.practiced ? "Practiced" : "Mark as practiced"}
               >
-                <Pencil size={10} /> Edit
-              </button>
-              <button
-                onClick={() => remove(n.id)}
-                className="text-[11px] text-red-400 hover:text-red-500 flex items-center gap-0.5 active:scale-95 transition-all duration-200"
-              >
-                <Trash2 size={10} /> Del
+                {n.practiced ? <CheckCircle2 size={13} /> : <Circle size={13} />}
               </button>
             </div>
           </div>
@@ -326,6 +406,7 @@ export default function NotesPage() {
             setViewing(null);
           }}
           onDelete={() => remove(viewing.id)}
+          onTogglePracticed={() => togglePracticed(viewing.id)}
         />
       )}
 
