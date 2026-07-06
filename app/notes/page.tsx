@@ -4,7 +4,10 @@ import { useLocalStorage } from "@/lib/useLocalStorage";
 import { Note } from "@/lib/types";
 import { seedNotes } from "@/lib/notesData";
 import { useState, useMemo, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import { Plus, Pencil, Trash2, StickyNote, X, Check, CheckCircle2, Circle, Download } from "lucide-react";
+
+const NotesScene3D = dynamic(() => import("@/components3d/NotesScene3D"), { ssr: false });
 
 const CATEGORIES = [
   "All",
@@ -293,6 +296,11 @@ export default function NotesPage() {
 
   return (
     <div className="space-y-4">
+      {/* 3D Notes Stack */}
+      <div className="glass rounded-2xl overflow-hidden animate-in" style={{ height: "300px" }}>
+        <NotesScene3D notes={notes} />
+      </div>
+
       <div className="flex flex-wrap justify-between items-center gap-3 animate-in">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight">

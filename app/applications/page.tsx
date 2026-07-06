@@ -3,6 +3,7 @@
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { Application, AppStatus, ApplicationSource } from "@/lib/types";
 import { useState, useMemo, useRef, useEffect } from "react";
+import dynamic from "next/dynamic";
 import {
   Plus,
   ClipboardPaste,
@@ -15,6 +16,8 @@ import {
   X,
   FileText,
 } from "lucide-react";
+
+const ApplicationsScene3D = dynamic(() => import("@/components3d/ApplicationsScene3D"), { ssr: false });
 
 const statuses: AppStatus[] = [
   "Applied",
@@ -336,6 +339,11 @@ export default function ApplicationsPage() {
 
   return (
     <div className="space-y-6">
+      {/* 3D Pipeline Visualization */}
+      <div className="glass rounded-2xl overflow-hidden animate-in" style={{ height: "320px" }}>
+        <ApplicationsScene3D applications={apps} />
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3 animate-in stagger-1">
         <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Application Tracker</h1>
         <div className="flex gap-2">

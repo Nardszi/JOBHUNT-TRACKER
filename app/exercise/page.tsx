@@ -4,8 +4,11 @@ import { useLocalStorage } from "@/lib/useLocalStorage";
 import { defaultTemplates } from "@/lib/exerciseData";
 import { Workout, WorkoutTemplate, ExerciseEntry, BodyStat, ExerciseType, TemplateCategory } from "@/lib/types";
 import { useState, useMemo, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } from "recharts";
 import { Plus, Trash2, Pencil, Play, Flame, Trophy, ChevronDown, ChevronUp, Dumbbell, Search } from "lucide-react";
+
+const ExerciseScene3D = dynamic(() => import("@/components3d/ExerciseScene3D"), { ssr: false });
 
 const exerciseTypes: ExerciseType[] = ["strength", "cardio", "flexibility", "other"];
 
@@ -334,6 +337,11 @@ export default function ExercisePage() {
 
   return (
     <div className="space-y-6">
+      {/* 3D Exercise Ring */}
+      <div className="glass rounded-2xl overflow-hidden animate-in" style={{ height: "320px" }}>
+        <ExerciseScene3D workouts={workouts} />
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3 animate-in">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight">Exercise</h1>

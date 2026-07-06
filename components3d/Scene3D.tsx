@@ -2,11 +2,11 @@
 
 import { useState, useCallback, useMemo, Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Environment } from "@react-three/drei";
 import Panel3D from "./Panel3D";
 import CameraRig from "./CameraRig";
 import StreakBars3D from "./StreakBars3D";
 import FPSMonitor from "./FPSMonitor";
+import SceneEnvironment from "./SceneEnvironment";
 import { DailyCheckin } from "@/lib/types";
 
 interface PanelConfig {
@@ -137,16 +137,12 @@ export default function Scene3D({ checkins, onPanelClick, activePanel }: Scene3D
         camera={{ position: [0, 1, 7], fov: 50 }}
         gl={{
           antialias: !degraded,
-          alpha: true,
+          alpha: false,
           powerPreference: degraded ? "low-power" : "high-performance",
         }}
         dpr={degraded ? 1 : [1, Math.min(typeof window !== "undefined" ? window.devicePixelRatio : 1, 2)]}
-        style={{ background: "transparent" }}
       >
-        <ambientLight intensity={degraded ? 0.6 : 0.8} />
-        <directionalLight position={[5, 5, 5]} intensity={degraded ? 0.7 : 1} />
-        <pointLight position={[-3, 2, 2]} intensity={0.5} color="#8b5cf6" />
-        <pointLight position={[3, 2, 2]} intensity={0.5} color="#34d399" />
+        <SceneEnvironment performanceMode={degraded} />
 
         <Suspense fallback={null}>
           {PANELS.map((panel, i) => (
@@ -166,7 +162,7 @@ export default function Scene3D({ checkins, onPanelClick, activePanel }: Scene3D
 
           {!degraded && (
             <group position={[0.6, -1.2, 0.5]}>
-              <StreakBars3D checkins={checkins} />
+              <StreakBars3D checkins={checkins} performanceMode={degraded} />
             </group>
           )}
 
@@ -179,22 +175,6 @@ export default function Scene3D({ checkins, onPanelClick, activePanel }: Scene3D
           isFlying={isFlying}
           onFlyComplete={handleFlyComplete}
         />
-
-        <OrbitControls
-          enablePan={false}
-          enableZoom={!degraded}
-          enableRotate={true}
-          minDistance={3}
-          maxDistance={12}
-          minPolarAngle={Math.PI / 6}
-          maxPolarAngle={Math.PI / 2.2}
-          autoRotate={!isFlying && !activePanel && !degraded}
-          autoRotateSpeed={0.3}
-          dampingFactor={0.05}
-          enableDamping
-        />
-
-        <fog attach="fog" args={["#09090b", degraded ? 15 : 12, degraded ? 20 : 25]} />
       </Canvas>
 
       {activePanel && (
