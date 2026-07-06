@@ -34,6 +34,7 @@ interface PlanTimeline3DProps {
   completedDays: Set<string>;
   applications?: Application[];
   performanceMode?: boolean;
+  onDayClick?: (dayNum: number, position: [number, number, number]) => void;
 }
 
 function DayMarker({
@@ -61,31 +62,45 @@ function DayMarker({
 }) {
   const ref = useRef<THREE.Mesh>(null);
   const matRef = useRef<THREE.MeshStandardMaterial>(null);
+  const [hovered, setHovered] = useState(false);
 
   const color = useMemo(() => {
+    if (hovered) return "#ffffff";
     if (status === "completed") return "#10b981";
     if (status === "today") return "#ffffff";
     return "#1e3a5f";
-  }, [status]);
+  }, [status, hovered]);
 
   const emissiveColor = useMemo(() => {
+    if (hovered) return "#34d399";
     if (status === "completed") return "#059669";
     if (status === "today") return "#ffffff";
     return "#0f2a4a";
-  }, [status]);
+  }, [status, hovered]);
 
-  const size = isMilestone ? 0.025 : 0.015;
+  const baseSize = isMilestone ? 0.025 : 0.015;
 
   useFrame((state) => {
     if (!ref.current || !matRef.current) return;
+    const t = state.clock.elapsedTime;
+
+    // Hover scale
+    const targetScale = hovered ? 1.6 : isToday && !performanceMode ? 1 + Math.sin(t * 2) * 0.15 : 1;
+    ref.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.12);
+
+    // Emissive pulse
     if (isToday && !performanceMode) {
-      const pulse = 1 + Math.sin(state.clock.elapsedTime * 2) * 0.15;
-      ref.current.scale.setScalar(pulse);
-      matRef.current.emissiveIntensity = 0.7 + Math.sin(state.clock.elapsedTime * 2) * 0.3;
+      matRef.current.emissiveIntensity = 0.7 + Math.sin(t * 2) * 0.3;
+    } else if (hovered) {
+      matRef.current.emissiveIntensity = 0.9;
+    } else {
+      matRef.current.emissiveIntensity = status === "completed" ? 0.5 : 0.15;
     }
   });
 
   const handlePointerOver = useCallback(() => {
+    setHovered(true);
+    document.body.style.cursor = "pointer";
     const date = dayToDate("", dayNum);
     onHover({
       position: [0, 0.04, z],
@@ -97,15 +112,21 @@ function DayMarker({
     });
   }, [dayNum, z, isToday, status, isMilestone, milestoneSummary, onHover]);
 
+  const handlePointerOut = useCallback(() => {
+    setHovered(false);
+    document.body.style.cursor = "auto";
+    onLeave();
+  }, [onLeave]);
+
   return (
     <group position={[0, 0, z]}>
       <mesh
         ref={ref}
         onPointerOver={(e) => { e.stopPropagation(); handlePointerOver(); }}
-        onPointerOut={onLeave}
+        onPointerOut={handlePointerOut}
         onClick={(e) => { e.stopPropagation(); onClick(); }}
       >
-        <sphereGeometry args={[size, performanceMode ? 8 : 16, performanceMode ? 8 : 16]} />
+        <sphereGeometry args={[baseSize, performanceMode ? 8 : 16, performanceMode ? 8 : 16]} />
         <meshStandardMaterial
           ref={matRef}
           color="#0a1420"
@@ -118,6 +139,14 @@ function DayMarker({
         />
         <Edges threshold={15} color={color} linewidth={1} />
       </mesh>
+
+      {/* Glow ring on hover */}
+      {hovered && (
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[baseSize * 1.8, baseSize * 2.2, 32]} />
+          <meshBasicMaterial color={emissiveColor} transparent opacity={0.3} side={THREE.DoubleSide} />
+        </mesh>
+      )}
 
       {isMilestone && (
         <>
@@ -194,6 +223,7 @@ export default function PlanTimeline3D({
   completedDays,
   applications = [],
   performanceMode = false,
+  onDayClick,
 }: PlanTimeline3DProps) {
   const groupRef = useRef<THREE.Group>(null);
   const [hoveredTooltip, setHoveredTooltip] = useState<TooltipData | null>(null);
@@ -265,6 +295,14 @@ export default function PlanTimeline3D({
     setHoveredTooltip(null);
   }, []);
 
+  const handleDayClick = useCallback(
+    (dayNum: number) => {
+      const z = dayZ(dayNum);
+      onDayClick?.(dayNum, [0, 0.15, z + 0.15]);
+    },
+    [onDayClick]
+  );
+
   useFrame((state) => {
     if (!groupRef.current) return;
     groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.05) * 0.005;
@@ -288,7 +326,7 @@ export default function PlanTimeline3D({
           milestoneSummary={m.isMilestone ? milestoneSummaries[m.dayNum] : undefined}
           onHover={handleHover}
           onLeave={handleLeave}
-          onClick={() => {}}
+          onClick={() => handleDayClick(m.dayNum)}
         />
       ))}
 
