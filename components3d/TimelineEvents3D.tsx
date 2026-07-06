@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { Application, AppStatus } from "@/lib/types";
 import MarkerTooltip, { TooltipData } from "./MarkerTooltip";
 
-const SPACING = 0.08;
+const SPACING = 0.12;
 
 function toLocalDateStr(date: Date): string {
   const y = date.getFullYear();
@@ -99,7 +99,7 @@ function EventMarker({
         onPointerOut={onLeave}
         onClick={(e) => { e.stopPropagation(); onClick(app.id); }}
       >
-        <octahedronGeometry args={[0.012, 0]} />
+        <octahedronGeometry args={[0.025, 0]} />
         <meshStandardMaterial
           ref={matRef}
           color="#0a1420"
@@ -154,7 +154,7 @@ export default function TimelineEvents3D({
       const z = (dn - 1) * SPACING;
       apps.forEach((app, i) => {
         const angle = (i / apps.length) * Math.PI * 2;
-        const radius = apps.length > 1 ? 0.02 + i * 0.005 : 0;
+        const radius = apps.length > 1 ? 0.04 + i * 0.01 : 0;
         const x = Math.cos(angle) * radius;
         const yOffset = Math.sin(angle) * radius * 0.5;
 

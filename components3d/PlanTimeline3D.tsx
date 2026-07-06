@@ -8,7 +8,7 @@ import { Application } from "@/lib/types";
 import MarkerTooltip, { TooltipData } from "./MarkerTooltip";
 
 const TOTAL_DAYS = 90;
-const SPACING = 0.08;
+const SPACING = 0.12;
 const MILESTONES = [30, 60, 90];
 
 function toLocalDateStr(date: Date): string {
@@ -78,7 +78,7 @@ function DayMarker({
     return "#0f2a4a";
   }, [status, hovered]);
 
-  const baseSize = isMilestone ? 0.025 : 0.015;
+  const baseSize = isMilestone ? 0.06 : 0.035;
 
   useFrame((state) => {
     if (!ref.current || !matRef.current) return;
@@ -200,7 +200,7 @@ function TorusArch({
   return (
     <group position={[0, 0, z]}>
       <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.06, 0.004, 8, performanceMode ? 16 : 32]} />
+        <torusGeometry args={[0.12, 0.008, 8, performanceMode ? 16 : 32]} />
         <meshStandardMaterial
           ref={matRef}
           color="#0a1420"

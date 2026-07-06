@@ -110,10 +110,10 @@ export default function PlanScene3D({
   }, [flyTarget]);
 
   const handleResetCamera = useCallback(() => {
-    const todayZ = (Math.min(dayNumber, 90) - 1) * 0.08;
+    const todayZ = (Math.min(dayNumber, 90) - 1) * 0.12;
     setFlyTarget({
       position: [0.5, 0.25, todayZ - 0.3],
-      lookAt: [0, 0, Math.min(todayZ + 0.5, 89 * 0.08)],
+      lookAt: [0, 0, Math.min(todayZ + 0.5, 89 * 0.12)],
     });
     setIsFlying(true);
     setZoomedDay(null);
@@ -154,7 +154,7 @@ export default function PlanScene3D({
           enablePan={false}
           enableZoom={true}
           enableRotate={true}
-          minDistance={1}
+          minDistance={0.3}
           maxDistance={14}
           minPolarAngle={Math.PI / 6}
           maxPolarAngle={Math.PI / 2.1}
