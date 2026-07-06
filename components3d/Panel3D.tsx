@@ -69,11 +69,11 @@ export default function Panel3D({
         }}
       >
         <meshStandardMaterial
-          color={hovered ? color : "#1a1a2e"}
-          emissive={hovered ? glowColor : isActive ? glowColor : "#000000"}
-          emissiveIntensity={hovered ? 0.3 : isActive ? 0.15 : 0}
+          color={hovered ? color : "#252540"}
+          emissive={hovered ? glowColor : isActive ? glowColor : glowColor}
+          emissiveIntensity={hovered ? 0.4 : isActive ? 0.2 : 0.08}
           transparent
-          opacity={0.92}
+          opacity={0.95}
           roughness={0.3}
           metalness={0.1}
         />
@@ -85,7 +85,6 @@ export default function Panel3D({
         color="white"
         anchorX="center"
         anchorY="middle"
-        font="/fonts/Inter-Bold.woff"
       >
         {icon}
       </Text>
@@ -97,7 +96,6 @@ export default function Panel3D({
         anchorX="center"
         anchorY="middle"
         maxWidth={1.6}
-        font="/fonts/Inter-Medium.woff"
       >
         {label}
       </Text>

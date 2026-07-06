@@ -116,10 +116,10 @@ export default function Scene3D({ checkins, onPanelClick, activePanel }: Scene3D
         dpr={[1, Math.min(typeof window !== "undefined" ? window.devicePixelRatio : 1, 2)]}
         style={{ background: "transparent" }}
       >
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 5, 5]} intensity={0.6} />
-        <pointLight position={[-3, 2, 2]} intensity={0.3} color="#8b5cf6" />
-        <pointLight position={[3, 2, 2]} intensity={0.3} color="#34d399" />
+        <ambientLight intensity={0.8} />
+        <directionalLight position={[5, 5, 5]} intensity={1} />
+        <pointLight position={[-3, 2, 2]} intensity={0.5} color="#8b5cf6" />
+        <pointLight position={[3, 2, 2]} intensity={0.5} color="#34d399" />
 
         <Suspense fallback={null}>
           {PANELS.map((panel, i) => (
@@ -162,7 +162,7 @@ export default function Scene3D({ checkins, onPanelClick, activePanel }: Scene3D
           enableDamping
         />
 
-        <fog attach="fog" args={["#09090b", 8, 18]} />
+        <fog attach="fog" args={["#09090b", 12, 25]} />
       </Canvas>
 
       {activePanel && (
