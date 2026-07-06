@@ -4,6 +4,7 @@ import { useLocalStorage } from "@/lib/useLocalStorage";
 import { defaultTasks, normalizeTask, dailyResetTasks } from "@/lib/planData";
 import { Task, Application } from "@/lib/types";
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import {
   Check,
   Minus,
@@ -17,6 +18,8 @@ import {
   PartyPopper,
   AlertTriangle,
 } from "lucide-react";
+
+const PlanScene3D = dynamic(() => import("@/components3d/PlanScene3D"), { ssr: false });
 
 const phases = [
   { key: "today", label: "Today" },
@@ -599,8 +602,41 @@ export default function PlanPage() {
 
   const followUpCount = getFollowUpCount(applications);
 
+  // Compute which days had any task completed (for the timeline)
+  const completedDays = useMemo(() => {
+    const days = new Set<string>();
+    for (const task of tasks) {
+      if (task.completed) {
+        // Mark the plan start + phase offset as completed
+        const start = new Date(planStartDate);
+        const phaseOffset = task.phase === "30" ? 0 : task.phase === "60" ? 30 : 60;
+        const d = new Date(start);
+        d.setDate(d.getDate() + phaseOffset);
+        days.add(toLocalDateStr(d));
+      }
+    }
+    return days;
+  }, [tasks, planStartDate]);
+
+  function toLocalDateStr(date: Date): string {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
   return (
     <div className="space-y-6">
+      {/* 3D Timeline */}
+      <div className="glass rounded-2xl overflow-hidden animate-in" style={{ height: "360px" }}>
+        <PlanScene3D
+          planStartDate={planStartDate}
+          dayNumber={dayNumber}
+          completedDays={completedDays}
+          applications={applications}
+        />
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3 animate-in">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight">30-60-90 Day Plan</h1>
