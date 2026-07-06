@@ -123,3 +123,24 @@ export interface BodyStat {
   weightKg?: number;
   notes?: string;
 }
+
+export interface DailyCheckin {
+  id: string;
+  date: string;
+  categoriesCompleted: {
+    applied: boolean;
+    exercised: boolean;
+    followedUp: boolean;
+    notesOrPrep: boolean;
+  };
+  activityCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StreakData {
+  currentStreak: number;
+  longestStreak: number;
+  lastCheckinDate: string | null;
+  totalDaysActive: number;
+}
