@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useMemo, useEffect, lazy, Suspense } from "react";
+import { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { defaultTasks, defaultProfile, normalizeTask, dailyResetTasks } from "@/lib/planData";
 import { Task, Application, Profile, Workout, Note, DailyCheckin } from "@/lib/types";
 import { generateCheckinsFromData, calculateStreak } from "@/lib/streaks";
 import { isWebGLSupported, isLowPowerDevice } from "@/lib/webgl";
-import SectionOverlay from "./SectionOverlay";
 import {
   Briefcase,
   Dumbbell,
@@ -17,21 +17,20 @@ import {
   TrendingUp,
   Video,
   Trophy,
-  ArrowRight,
 } from "lucide-react";
-import Link from "next/link";
 
 const Scene3D = dynamic(() => import("./Scene3D"), { ssr: false });
 
-const SECTION_NAV = [
-  { id: "applications", label: "Applications", icon: Briefcase, color: "bg-blue-500/10 text-blue-500", href: "/applications" },
-  { id: "exercise", label: "Exercise", icon: Dumbbell, color: "bg-emerald-500/10 text-emerald-500", href: "/exercise" },
-  { id: "notes", label: "Notes", icon: StickyNote, color: "bg-violet-500/10 text-violet-500", href: "/notes" },
-  { id: "recruiters", label: "Recruiters", icon: Users, color: "bg-amber-500/10 text-amber-500", href: "#" },
-  { id: "streaks", label: "Streaks", icon: Flame, color: "bg-orange-500/10 text-orange-500", href: "#" },
-] as const;
+const PANEL_ROUTES: Record<string, string> = {
+  applications: "/applications",
+  exercise: "/exercise",
+  notes: "/notes",
+  recruiters: "#",
+  streaks: "#",
+};
 
 export default function Dashboard3D() {
+  const router = useRouter();
   const [rawTasks] = useLocalStorage<Task[]>("jh_tasks", defaultTasks);
   const [applications] = useLocalStorage<Application[]>("jh_applications", []);
   const [profile] = useLocalStorage<Profile>("jh_profile", defaultProfile);
@@ -39,7 +38,6 @@ export default function Dashboard3D() {
   const [restDays] = useLocalStorage<string[]>("jh_restDays", []);
   const [notes] = useLocalStorage<Note[]>("jh_notes", []);
 
-  const [activePanel, setActivePanel] = useState<string | null>(null);
   const [webglOk, setWebglOk] = useState<boolean | null>(null);
 
   const tasks = useMemo(() => dailyResetTasks(rawTasks.map(normalizeTask)), [rawTasks]);
@@ -58,7 +56,10 @@ export default function Dashboard3D() {
   const offers = applications.filter((a) => a.status === "Offer").length;
 
   function handlePanelClick(panelId: string) {
-    setActivePanel(panelId || null);
+    const route = PANEL_ROUTES[panelId];
+    if (route && route !== "#") {
+      router.push(route);
+    }
   }
 
   if (webglOk === null) {
@@ -112,39 +113,12 @@ export default function Dashboard3D() {
         </div>
       </div>
 
-      {/* Persistent 2D Nav */}
-      <div className="flex flex-wrap gap-2 animate-in stagger-1">
-        {SECTION_NAV.map((section) => {
-          const Icon = section.icon;
-          return (
-            <Link
-              key={section.id}
-              href={section.href}
-              onClick={(e) => {
-                if (section.href === "#") {
-                  e.preventDefault();
-                  handlePanelClick(section.id);
-                }
-              }}
-              className={`glass rounded-xl px-4 py-2.5 flex items-center gap-2 text-sm font-medium transition-all duration-200 hover:scale-[1.02] active:scale-95 ${
-                activePanel === section.id ? "ring-2 ring-violet-500/50" : ""
-              }`}
-            >
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${section.color}`}>
-                <Icon size={14} />
-              </div>
-              <span className="text-neutral-700 dark:text-neutral-300">{section.label}</span>
-            </Link>
-          );
-        })}
-      </div>
-
       {/* 3D Scene */}
-      <div className="glass rounded-2xl overflow-hidden animate-in stagger-2" style={{ height: "50vh", minHeight: "350px" }}>
+      <div className="glass rounded-2xl overflow-hidden animate-in stagger-1" style={{ height: "50vh", minHeight: "350px" }}>
         <Scene3D
           checkins={checkins}
           onPanelClick={handlePanelClick}
-          activePanel={activePanel}
+          activePanel={null}
         />
       </div>
 
@@ -187,24 +161,6 @@ export default function Dashboard3D() {
           </div>
         </div>
       </div>
-
-      {/* Section Overlay */}
-      {activePanel && (
-        <SectionOverlay sectionId={activePanel} onClose={() => setActivePanel(null)}>
-          <p className="text-neutral-500 dark:text-neutral-400 text-sm">
-            Click a section in the 3D scene or use the navigation buttons above to access each area.
-          </p>
-          <div className="mt-4">
-            <Link
-              href={SECTION_NAV.find((s) => s.id === activePanel)?.href || "#"}
-              className="inline-flex items-center gap-2 glass rounded-xl px-4 py-2 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-white/[0.06] transition-all"
-            >
-              Go to {SECTION_NAV.find((s) => s.id === activePanel)?.label}
-              <ArrowRight size={14} />
-            </Link>
-          </div>
-        </SectionOverlay>
-      )}
     </div>
   );
 }
@@ -247,19 +203,23 @@ function FallbackDashboard() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-in stagger-2">
-        {SECTION_NAV.map((section) => {
+        {[
+          { label: "Applications", icon: Briefcase, color: "bg-blue-500/10 text-blue-500", href: "/applications" },
+          { label: "Exercise", icon: Dumbbell, color: "bg-emerald-500/10 text-emerald-500", href: "/exercise" },
+          { label: "Notes", icon: StickyNote, color: "bg-violet-500/10 text-violet-500", href: "/notes" },
+          { label: "Streaks", icon: Flame, color: "bg-orange-500/10 text-orange-500", href: "#" },
+        ].map((section) => {
           const Icon = section.icon;
           return (
-            <Link
-              key={section.id}
-              href={section.href}
+            <div
+              key={section.label}
               className="glass rounded-2xl p-4 flex flex-col items-center gap-2 hover:scale-[1.02] transition-all duration-200"
             >
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${section.color}`}>
                 <Icon size={18} />
               </div>
               <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">{section.label}</span>
-            </Link>
+            </div>
           );
         })}
       </div>
