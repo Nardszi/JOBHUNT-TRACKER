@@ -13,6 +13,7 @@ interface CameraRigProps {
 
 const DEFAULT_POSITION: [number, number, number] = [0, 1, 7];
 const DEFAULT_LOOK_AT: [number, number, number] = [0, 0, 0];
+const FLY_DURATION_MS = 800;
 
 export default function CameraRig({
   targetPosition,
@@ -21,16 +22,18 @@ export default function CameraRig({
   onFlyComplete,
 }: CameraRigProps) {
   const { camera } = useThree();
-  const flyProgress = useRef(0);
+  const flyStartTime = useRef(0);
   const startPosition = useRef(new THREE.Vector3(...DEFAULT_POSITION));
   const startLookAt = useRef(new THREE.Vector3(...DEFAULT_LOOK_AT));
   const currentLookAt = useRef(new THREE.Vector3(...DEFAULT_LOOK_AT));
+  const flyCompleteFired = useRef(false);
 
   useEffect(() => {
     if (isFlying && targetPosition) {
       startPosition.current.copy(camera.position);
       startLookAt.current.copy(currentLookAt.current);
-      flyProgress.current = 0;
+      flyStartTime.current = performance.now();
+      flyCompleteFired.current = false;
     }
   }, [isFlying, targetPosition, camera]);
 
@@ -46,8 +49,8 @@ export default function CameraRig({
       return;
     }
 
-    flyProgress.current = Math.min(flyProgress.current + 0.02, 1);
-    const t = easeInOutCubic(flyProgress.current);
+    const elapsed = performance.now() - flyStartTime.current;
+    const t = easeInOutCubic(Math.min(elapsed / FLY_DURATION_MS, 1));
 
     camera.position.lerpVectors(
       startPosition.current,
@@ -62,7 +65,8 @@ export default function CameraRig({
     );
     camera.lookAt(currentLookAt.current);
 
-    if (flyProgress.current >= 1) {
+    if (elapsed >= FLY_DURATION_MS && !flyCompleteFired.current) {
+      flyCompleteFired.current = true;
       onFlyComplete();
     }
   });

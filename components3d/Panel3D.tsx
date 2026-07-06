@@ -14,6 +14,7 @@ interface Panel3DProps {
   index: number;
   isActive: boolean;
   onClick: () => void;
+  activityLevel: number;
 }
 
 export default function Panel3D({
@@ -25,6 +26,7 @@ export default function Panel3D({
   index,
   isActive,
   onClick,
+  activityLevel,
 }: Panel3DProps) {
   const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -70,8 +72,8 @@ export default function Panel3D({
       >
         <meshStandardMaterial
           color={hovered ? color : "#252540"}
-          emissive={hovered ? glowColor : isActive ? glowColor : glowColor}
-          emissiveIntensity={hovered ? 0.4 : isActive ? 0.2 : 0.08}
+          emissive={hovered ? glowColor : glowColor}
+          emissiveIntensity={hovered ? 0.5 : Math.max(0.08, activityLevel * 0.35)}
           transparent
           opacity={0.95}
           roughness={0.3}
@@ -100,11 +102,11 @@ export default function Panel3D({
         {label}
       </Text>
 
-      {(hovered || isActive) && (
+      {(hovered || isActive || activityLevel > 0.5) && (
         <pointLight
           position={[0, 0, 0.5]}
           color={glowColor}
-          intensity={0.5}
+          intensity={hovered ? 0.8 : activityLevel * 0.6}
           distance={2}
         />
       )}

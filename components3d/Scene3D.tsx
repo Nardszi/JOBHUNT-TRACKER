@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useCallback, Suspense } from "react";
+import { useState, useCallback, useMemo, Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Environment } from "@react-three/drei";
 import Panel3D from "./Panel3D";
 import CameraRig from "./CameraRig";
 import StreakBars3D from "./StreakBars3D";
+import FPSMonitor from "./FPSMonitor";
 import { DailyCheckin } from "@/lib/types";
 
 interface PanelConfig {
@@ -78,12 +79,36 @@ interface Scene3DProps {
   activePanel: string | null;
 }
 
+function computeActivityLevels(checkins: DailyCheckin[]): Record<string, number> {
+  const recent = checkins.filter((c) => {
+    const d = new Date(c.date);
+    const now = new Date();
+    const diffDays = (now.getTime() - d.getTime()) / 86400000;
+    return diffDays <= 7;
+  });
+  const counts: Record<string, number> = { applications: 0, exercise: 0, notes: 0, recruiters: 0, streaks: 0 };
+  for (const c of recent) {
+    if (c.categoriesCompleted.applied) counts.applications += c.activityCount;
+    if (c.categoriesCompleted.exercised) counts.exercise += c.activityCount;
+    if (c.categoriesCompleted.notesOrPrep) counts.notes += c.activityCount;
+    if (c.categoriesCompleted.followedUp) counts.recruiters += c.activityCount;
+    counts.streaks += c.activityCount;
+  }
+  const max = Math.max(1, ...Object.values(counts));
+  const levels: Record<string, number> = {};
+  for (const [k, v] of Object.entries(counts)) {
+    levels[k] = v / max;
+  }
+  return levels;
+}
+
 export default function Scene3D({ checkins, onPanelClick, activePanel }: Scene3DProps) {
   const [flyTarget, setFlyTarget] = useState<{
     position: [number, number, number];
     lookAt: [number, number, number];
   } | null>(null);
   const [isFlying, setIsFlying] = useState(false);
+  const [degraded, setDegraded] = useState(false);
 
   const handlePanelClick = useCallback(
     (panel: PanelConfig) => {
@@ -104,20 +129,22 @@ export default function Scene3D({ checkins, onPanelClick, activePanel }: Scene3D
     onPanelClick("");
   }, [onPanelClick]);
 
+  const activityLevels = useMemo(() => computeActivityLevels(checkins), [checkins]);
+
   return (
     <div className="relative w-full h-full">
       <Canvas
         camera={{ position: [0, 1, 7], fov: 50 }}
         gl={{
-          antialias: true,
+          antialias: !degraded,
           alpha: true,
-          powerPreference: "high-performance",
+          powerPreference: degraded ? "low-power" : "high-performance",
         }}
-        dpr={[1, Math.min(typeof window !== "undefined" ? window.devicePixelRatio : 1, 2)]}
+        dpr={degraded ? 1 : [1, Math.min(typeof window !== "undefined" ? window.devicePixelRatio : 1, 2)]}
         style={{ background: "transparent" }}
       >
-        <ambientLight intensity={0.8} />
-        <directionalLight position={[5, 5, 5]} intensity={1} />
+        <ambientLight intensity={degraded ? 0.6 : 0.8} />
+        <directionalLight position={[5, 5, 5]} intensity={degraded ? 0.7 : 1} />
         <pointLight position={[-3, 2, 2]} intensity={0.5} color="#8b5cf6" />
         <pointLight position={[3, 2, 2]} intensity={0.5} color="#34d399" />
 
@@ -133,12 +160,17 @@ export default function Scene3D({ checkins, onPanelClick, activePanel }: Scene3D
               index={i}
               isActive={activePanel === panel.id}
               onClick={() => handlePanelClick(panel)}
+              activityLevel={activityLevels[panel.id] ?? 0}
             />
           ))}
 
-          <group position={[0.6, -1.2, 0.5]}>
-            <StreakBars3D checkins={checkins} />
-          </group>
+          {!degraded && (
+            <group position={[0.6, -1.2, 0.5]}>
+              <StreakBars3D checkins={checkins} />
+            </group>
+          )}
+
+          <FPSMonitor onDegraded={() => setDegraded(true)} threshold={15} sampleSize={60} />
         </Suspense>
 
         <CameraRig
@@ -150,19 +182,19 @@ export default function Scene3D({ checkins, onPanelClick, activePanel }: Scene3D
 
         <OrbitControls
           enablePan={false}
-          enableZoom={true}
+          enableZoom={!degraded}
           enableRotate={true}
           minDistance={3}
           maxDistance={12}
           minPolarAngle={Math.PI / 6}
           maxPolarAngle={Math.PI / 2.2}
-          autoRotate={!isFlying && !activePanel}
+          autoRotate={!isFlying && !activePanel && !degraded}
           autoRotateSpeed={0.3}
           dampingFactor={0.05}
           enableDamping
         />
 
-        <fog attach="fog" args={["#09090b", 12, 25]} />
+        <fog attach="fog" args={["#09090b", degraded ? 15 : 12, degraded ? 20 : 25]} />
       </Canvas>
 
       {activePanel && (
